@@ -70,7 +70,7 @@ export default function NewApplication() {
           <div
             role="alert"
             className="mb-5 rounded-lg px-4 py-3 text-sm"
-            style={{ backgroundColor: "#fef2f2", color: "var(--color-destructive)" }}
+            style={{ backgroundColor: "var(--color-destructive-bg)", color: "var(--color-destructive)" }}
           >
             {error}
           </div>

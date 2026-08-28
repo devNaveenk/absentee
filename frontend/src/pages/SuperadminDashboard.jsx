@@ -85,7 +85,7 @@ export default function SuperadminDashboard() {
           <div
             role="alert"
             className="mb-6 rounded-lg px-4 py-3 text-sm flex items-center justify-between"
-            style={{ backgroundColor: "#fef2f2", color: "var(--color-destructive)" }}
+            style={{ backgroundColor: "var(--color-destructive-bg)", color: "var(--color-destructive)" }}
           >
             <span>{error}</span>
             <button onClick={loadAll} className="cursor-pointer underline font-medium">
@@ -327,11 +327,14 @@ function StatusBadge({ active }) {
       className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium"
       style={
         active
-          ? { backgroundColor: "#d1fae5", color: "#065f46" }
-          : { backgroundColor: "#fee2e2", color: "#991b1b" }
+          ? { backgroundColor: "var(--color-success-bg)", color: "var(--color-success)" }
+          : { backgroundColor: "var(--color-destructive-bg)", color: "var(--color-destructive)" }
       }
     >
-      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: active ? "#059669" : "#dc2626" }} />
+      <span
+        className="h-1.5 w-1.5 rounded-full"
+        style={{ backgroundColor: active ? "var(--color-success)" : "var(--color-destructive)" }}
+      />
       {active ? "Active" : "Suspended"}
     </span>
   )
@@ -423,7 +426,7 @@ function CreateTenantModal({ onClose, onCreated }) {
       <div className="max-h-[70vh] overflow-y-auto pr-1">
         <form onSubmit={submit} className="space-y-4">
           {error && (
-            <div role="alert" className="rounded-lg px-3 py-2 text-sm" style={{ backgroundColor: "#fef2f2", color: "var(--color-destructive)" }}>
+            <div role="alert" className="rounded-lg px-3 py-2 text-sm" style={{ backgroundColor: "var(--color-destructive-bg)", color: "var(--color-destructive)" }}>
               {error}
             </div>
           )}

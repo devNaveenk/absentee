@@ -147,7 +147,7 @@ export default function ApplicationDetail() {
     return (
       <AppShell role="tenant">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-          <div role="alert" className="rounded-lg px-4 py-3 text-sm" style={{ backgroundColor: "#fef2f2", color: "var(--color-destructive)" }}>
+          <div role="alert" className="rounded-lg px-4 py-3 text-sm" style={{ backgroundColor: "var(--color-destructive-bg)", color: "var(--color-destructive)" }}>
             {error || "Application not found."}
           </div>
         </div>
@@ -180,7 +180,7 @@ export default function ApplicationDetail() {
         </div>
 
         {actionError && (
-          <div role="alert" className="mb-5 rounded-lg px-4 py-3 text-sm" style={{ backgroundColor: "#fef2f2", color: "var(--color-destructive)" }}>
+          <div role="alert" className="mb-5 rounded-lg px-4 py-3 text-sm" style={{ backgroundColor: "var(--color-destructive-bg)", color: "var(--color-destructive)" }}>
             {actionError}
           </div>
         )}
@@ -324,7 +324,7 @@ export default function ApplicationDetail() {
               onClick={() => setShowReject(true)}
               disabled={busy}
               className="cursor-pointer rounded-lg px-4 py-2.5 text-sm font-medium disabled:opacity-50"
-              style={{ backgroundColor: "#fef2f2", color: "var(--color-destructive)" }}
+              style={{ backgroundColor: "var(--color-destructive-bg)", color: "var(--color-destructive)" }}
             >
               Reject
             </button>

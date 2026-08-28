@@ -90,7 +90,7 @@ export default function Login() {
                 role="alert"
                 aria-live="polite"
                 className="mb-4 rounded-lg px-4 py-3 text-sm"
-                style={{ backgroundColor: "#fef2f2", color: "var(--color-destructive)" }}
+                style={{ backgroundColor: "var(--color-destructive-bg)", color: "var(--color-destructive)" }}
               >
                 {error}
               </div>

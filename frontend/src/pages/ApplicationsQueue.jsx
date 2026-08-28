@@ -21,10 +21,10 @@ const STATUS_LABELS = {
 
 const STATUS_TONE = {
   unprocessed: { bg: "var(--color-muted-bg)", fg: "var(--color-muted)" },
-  abs_sent: { bg: "#d1fae5", fg: "#065f46" },
-  rejected: { bg: "#fee2e2", fg: "#991b1b" },
-  cure: { bg: "#fef3c7", fg: "#92400e" },
-  reapproved: { bg: "#dbeafe", fg: "#1e40af" },
+  abs_sent: { bg: "var(--color-success-bg)", fg: "var(--color-success)" },
+  rejected: { bg: "var(--color-destructive-bg)", fg: "var(--color-destructive)" },
+  cure: { bg: "var(--color-warning-bg)", fg: "var(--color-warning)" },
+  reapproved: { bg: "var(--color-info-bg)", fg: "var(--color-info)" },
 }
 
 export default function ApplicationsQueue() {
@@ -113,7 +113,7 @@ export default function ApplicationsQueue() {
           <div
             role="alert"
             className="mb-6 rounded-lg px-4 py-3 text-sm flex items-center justify-between"
-            style={{ backgroundColor: "#fef2f2", color: "var(--color-destructive)" }}
+            style={{ backgroundColor: "var(--color-destructive-bg)", color: "var(--color-destructive)" }}
           >
             <span>{error}</span>
             <button onClick={load} className="cursor-pointer underline font-medium">

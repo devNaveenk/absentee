@@ -1,18 +1,25 @@
 @import "tailwindcss";
 
 :root {
-  --color-primary: #0f766e;
+  --color-primary: #2563eb;
   --color-on-primary: #ffffff;
-  --color-secondary: #14b8a6;
-  --color-accent: #0369a1;
-  --color-background: #f0fdfa;
+  --color-secondary: #3b82f6;
+  --color-accent: #0ea5e9;
+  --color-background: #f8fafc;
   --color-surface: #ffffff;
-  --color-foreground: #134e4a;
-  --color-muted: #5f7c7a;
-  --color-muted-bg: #e8f0f3;
-  --color-border: #99f6e4;
+  --color-foreground: #0f172a;
+  --color-muted: #64748b;
+  --color-muted-bg: #eef2f7;
+  --color-border: #e2e8f0;
   --color-destructive: #dc2626;
-  --color-ring: #0f766e;
+  --color-destructive-bg: #fee2e2;
+  --color-success: #16a34a;
+  --color-success-bg: #dcfce7;
+  --color-warning: #ea580c;
+  --color-warning-bg: #ffedd5;
+  --color-info: #7c3aed;
+  --color-info-bg: #ede9fe;
+  --color-ring: #2563eb;
   --font-body: "Fira Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Fira Code", ui-monospace, monospace;
 }
@@ -20,34 +27,48 @@
 :root[data-theme="dark"],
 :root:not([data-theme="light"]) {
   @media (prefers-color-scheme: dark) {
-    --color-primary: #2dd4bf;
-    --color-on-primary: #062a27;
-    --color-secondary: #14b8a6;
+    --color-primary: #60a5fa;
+    --color-on-primary: #0b1220;
+    --color-secondary: #3b82f6;
     --color-accent: #38bdf8;
-    --color-background: #0a1817;
-    --color-surface: #0f2422;
-    --color-foreground: #ecfdf9;
-    --color-muted: #9cbdb9;
-    --color-muted-bg: #14302d;
-    --color-border: #1f4a45;
+    --color-background: #0b1220;
+    --color-surface: #111827;
+    --color-foreground: #e2e8f0;
+    --color-muted: #94a3b8;
+    --color-muted-bg: #1e293b;
+    --color-border: #26344a;
     --color-destructive: #f87171;
-    --color-ring: #2dd4bf;
+    --color-destructive-bg: #451a1a;
+    --color-success: #4ade80;
+    --color-success-bg: #14321f;
+    --color-warning: #fb923c;
+    --color-warning-bg: #3a2410;
+    --color-info: #a78bfa;
+    --color-info-bg: #2c2350;
+    --color-ring: #60a5fa;
   }
 }
 
 :root[data-theme="dark"] {
-  --color-primary: #2dd4bf;
-  --color-on-primary: #062a27;
-  --color-secondary: #14b8a6;
+  --color-primary: #60a5fa;
+  --color-on-primary: #0b1220;
+  --color-secondary: #3b82f6;
   --color-accent: #38bdf8;
-  --color-background: #0a1817;
-  --color-surface: #0f2422;
-  --color-foreground: #ecfdf9;
-  --color-muted: #9cbdb9;
-  --color-muted-bg: #14302d;
-  --color-border: #1f4a45;
+  --color-background: #0b1220;
+  --color-surface: #111827;
+  --color-foreground: #e2e8f0;
+  --color-muted: #94a3b8;
+  --color-muted-bg: #1e293b;
+  --color-border: #26344a;
   --color-destructive: #f87171;
-  --color-ring: #2dd4bf;
+  --color-destructive-bg: #451a1a;
+  --color-success: #4ade80;
+  --color-success-bg: #14321f;
+  --color-warning: #fb923c;
+  --color-warning-bg: #3a2410;
+  --color-info: #a78bfa;
+  --color-info-bg: #2c2350;
+  --color-ring: #60a5fa;
 }
 
 * {

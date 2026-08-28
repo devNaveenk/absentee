@@ -80,7 +80,7 @@ export default function VotersPage() {
           <div
             role="alert"
             className="mb-6 rounded-lg px-4 py-3 text-sm flex items-center justify-between"
-            style={{ backgroundColor: "#fef2f2", color: "var(--color-destructive)" }}
+            style={{ backgroundColor: "var(--color-destructive-bg)", color: "var(--color-destructive)" }}
           >
             <span>{error}</span>
             <button onClick={load} className="cursor-pointer underline font-medium">
@@ -259,7 +259,7 @@ function VoterFormModal({ voter, onClose, onSaved }) {
     <Modal title={isEdit ? "Edit Voter" : "Add Voter"} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
         {error && (
-          <div role="alert" className="rounded-lg px-3 py-2 text-sm" style={{ backgroundColor: "#fef2f2", color: "var(--color-destructive)" }}>
+          <div role="alert" className="rounded-lg px-3 py-2 text-sm" style={{ backgroundColor: "var(--color-destructive-bg)", color: "var(--color-destructive)" }}>
             {error}
           </div>
         )}
@@ -327,7 +327,7 @@ function ImportCsvModal({ onClose, onImported }) {
       </p>
 
       {error && (
-        <div role="alert" className="mb-4 rounded-lg px-3 py-2 text-sm" style={{ backgroundColor: "#fef2f2", color: "var(--color-destructive)" }}>
+        <div role="alert" className="mb-4 rounded-lg px-3 py-2 text-sm" style={{ backgroundColor: "var(--color-destructive-bg)", color: "var(--color-destructive)" }}>
           {error}
         </div>
       )}

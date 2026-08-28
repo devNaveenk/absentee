@@ -71,7 +71,7 @@ export default function TenantDashboard() {
           <div
             role="alert"
             className="mb-6 rounded-lg px-4 py-3 text-sm flex items-center justify-between"
-            style={{ backgroundColor: "#fef2f2", color: "var(--color-destructive)" }}
+            style={{ backgroundColor: "var(--color-destructive-bg)", color: "var(--color-destructive)" }}
           >
             <span>{error}</span>
             <button onClick={load} className="cursor-pointer underline font-medium">
