@@ -16,6 +16,7 @@ from app.schemas.schemas import (
     ReturnedBallotListItem,
     ReturnedBallotOut,
     TenantOut,
+    VoterListItem,
     VoterOut,
 )
 
@@ -57,6 +58,17 @@ def voter_to_out(voter: Voter) -> VoterOut:
         dl_number=voter.dl_number,
         veteran_id=voter.veteran_id,
         passport_id=voter.passport_id,
+        has_signature=bool(voter.signature_image_path),
+    )
+
+
+def voter_to_list_item(voter: Voter) -> VoterListItem:
+    return VoterListItem(
+        id=voter.id,
+        external_voter_id=voter.external_voter_id,
+        full_name=voter.full_name,
+        registered_address=voter.registered_address,
+        dl_number=voter.dl_number,
         has_signature=bool(voter.signature_image_path),
     )
 

@@ -6,6 +6,7 @@ const TENANT_NAV = [
   { to: "/dashboard", label: "Dashboard" },
   { to: "/applications", label: "Applications" },
   { to: "/returned-ballots", label: "Returned Ballots" },
+  { to: "/voters", label: "Voters" },
 ]
 
 export default function AppShell({ children, role }) {

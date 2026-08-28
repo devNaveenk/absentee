@@ -119,6 +119,57 @@ class VoterOut(BaseModel):
         from_attributes = True
 
 
+class VoterCreate(BaseModel):
+    full_name: str
+    registered_address: str
+    external_voter_id: str | None = None
+    date_of_birth: date | None = None
+    dl_number: str | None = None
+    veteran_id: str | None = None
+    passport_id: str | None = None
+
+
+class VoterUpdate(BaseModel):
+    full_name: str | None = None
+    registered_address: str | None = None
+    external_voter_id: str | None = None
+    date_of_birth: date | None = None
+    dl_number: str | None = None
+    veteran_id: str | None = None
+    passport_id: str | None = None
+
+
+class VoterListItem(BaseModel):
+    id: int
+    external_voter_id: str | None
+    full_name: str
+    registered_address: str
+    dl_number: str | None
+    has_signature: bool
+
+    class Config:
+        from_attributes = True
+
+
+class VoterListPage(BaseModel):
+    items: list[VoterListItem]
+    total: int
+    offset: int
+    limit: int
+
+
+class VoterImportRowError(BaseModel):
+    row: int
+    error: str
+
+
+class VoterImportSummary(BaseModel):
+    created: int
+    updated: int
+    skipped: int
+    errors: list[VoterImportRowError]
+
+
 class ApplicationCreate(BaseModel):
     submitted_full_name: str
     submitted_address: str

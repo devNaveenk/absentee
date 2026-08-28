@@ -22,6 +22,37 @@ class VoterRepository:
     def get(self, tenant_id: int, voter_id: int) -> Voter | None:
         return self.db.query(Voter).filter(Voter.id == voter_id, Voter.tenant_id == tenant_id).first()
 
+    def get_by_external_id(self, tenant_id: int, external_voter_id: str) -> Voter | None:
+        return (
+            self.db.query(Voter)
+            .filter(Voter.tenant_id == tenant_id, Voter.external_voter_id == external_voter_id)
+            .first()
+        )
+
+    def list_page(self, tenant_id: int, *, offset: int, limit: int) -> list[Voter]:
+        return (
+            self.db.query(Voter)
+            .filter(Voter.tenant_id == tenant_id)
+            .order_by(Voter.full_name)
+            .offset(offset)
+            .limit(limit)
+            .all()
+        )
+
+    def count(self, tenant_id: int) -> int:
+        return self.db.query(Voter).filter(Voter.tenant_id == tenant_id).count()
+
+    def add(self, voter: Voter) -> Voter:
+        self.db.add(voter)
+        self.db.flush()
+        return voter
+
+    def commit(self) -> None:
+        self.db.commit()
+
+    def refresh(self, voter: Voter) -> None:
+        self.db.refresh(voter)
+
     def search(self, tenant_id: int, query: str, limit: int) -> list[Voter]:
         q = query.strip()
         prefix = f"{q}%"
