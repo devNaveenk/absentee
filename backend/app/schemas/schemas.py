@@ -175,6 +175,7 @@ class VoterImportSummary(BaseModel):
     updated: int
     skipped: int
     errors: list[VoterImportRowError]
+    warnings: list[VoterImportRowError] = Field(default_factory=list)
 
 
 class ApplicationCreate(BaseModel):

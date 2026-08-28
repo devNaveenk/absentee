@@ -407,6 +407,23 @@ function ImportCsvModal({ onClose, onImported }) {
               ))}
             </ul>
           )}
+          {summary.warnings?.length > 0 && (
+            <div>
+              <p className="text-xs font-medium mb-1" style={{ color: "var(--color-warning)" }}>
+                {summary.warnings.length} row{summary.warnings.length === 1 ? "" : "s"} imported with a field skipped:
+              </p>
+              <ul
+                className="rounded-lg border p-3 max-h-40 overflow-y-auto space-y-1"
+                style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-warning-bg)" }}
+              >
+                {summary.warnings.map((w, i) => (
+                  <li key={i} style={{ color: "var(--color-warning)" }}>
+                    Row {w.row}: {w.error}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       ) : (
         <input

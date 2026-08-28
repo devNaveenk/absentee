@@ -1,5 +1,6 @@
 import csv
 import io
+import re
 from datetime import date, datetime
 
 from sqlalchemy.orm import Session
@@ -20,13 +21,41 @@ KNOWN_CSV_COLUMNS = REQUIRED_CSV_COLUMNS | {
 }
 
 
+_DATE_FORMATS = (
+    "%Y-%m-%d",
+    "%Y/%m/%d",
+    "%m/%d/%Y",
+    "%m-%d-%Y",
+    "%d/%m/%Y",
+    "%d-%m-%Y",
+    "%m/%d/%y",
+    "%d-%b-%Y",
+    "%d-%b-%y",
+    "%b %d, %Y",
+    "%B %d, %Y",
+)
+
+
 def _parse_date(value: str) -> date | None:
+    """Best-effort date parsing tolerant of common spreadsheet export formats.
+
+    Returns None both for an empty value and for one that couldn't be
+    parsed -- callers that need to tell the two apart (e.g. to warn the
+    user) should check the raw value themselves, since a silently dropped
+    date is exactly the kind of thing that looks like data loss.
+    """
     value = (value or "").strip()
     if not value:
         return None
-    for fmt in ("%Y-%m-%d", "%m/%d/%Y"):
+
+    # Spreadsheet exports often tack on a time component (e.g. "6/15/1985 0:00:00").
+    # Strip it only when present -- a blind space-split would also break
+    # multi-word formats like "June 15, 1985".
+    date_part = re.sub(r"[T ]\d{1,2}:\d{2}(:\d{2})?\s*(AM|PM)?$", "", value, flags=re.IGNORECASE).strip()
+
+    for fmt in _DATE_FORMATS:
         try:
-            return datetime.strptime(value, fmt).date()
+            return datetime.strptime(date_part, fmt).date()
         except ValueError:
             continue
     return None
@@ -111,6 +140,7 @@ class VoterService:
 
         created = updated = skipped = 0
         errors: list[VoterImportRowError] = []
+        warnings: list[VoterImportRowError] = []
 
         for row_num, raw_row in enumerate(reader, start=2):
             row = {(k or "").strip().lower(): (v or "").strip() for k, v in raw_row.items() if k}
@@ -121,11 +151,21 @@ class VoterService:
                 errors.append(VoterImportRowError(row=row_num, error="full_name and registered_address are required"))
                 continue
 
+            raw_dob = row.get("date_of_birth", "")
+            parsed_dob = _parse_date(raw_dob)
+            if raw_dob.strip() and parsed_dob is None:
+                warnings.append(
+                    VoterImportRowError(
+                        row=row_num,
+                        error=f"date_of_birth '{raw_dob}' could not be parsed and was left blank (use YYYY-MM-DD)",
+                    )
+                )
+
             external_voter_id = row.get("external_voter_id") or None
             fields = {
                 "full_name": full_name,
                 "registered_address": registered_address,
-                "date_of_birth": _parse_date(row.get("date_of_birth", "")),
+                "date_of_birth": parsed_dob,
                 "dl_number": row.get("dl_number") or None,
                 "veteran_id": row.get("veteran_id") or None,
                 "passport_id": row.get("passport_id") or None,
@@ -147,4 +187,6 @@ class VoterService:
                 errors.append(VoterImportRowError(row=row_num, error=str(exc)))
 
         self.voters.commit()
-        return VoterImportSummary(created=created, updated=updated, skipped=skipped, errors=errors[:50])
+        return VoterImportSummary(
+            created=created, updated=updated, skipped=skipped, errors=errors[:50], warnings=warnings[:50]
+        )
