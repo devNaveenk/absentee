@@ -3,11 +3,13 @@ import { useNavigate } from "react-router-dom"
 import AppShell from "../components/AppShell"
 import BackButton from "../components/BackButton"
 import VoterSearchInput from "../components/VoterSearchInput"
+import { useNotify } from "../context/NotificationContext"
 import { useTenantConfig } from "../hooks/useTenantConfig"
 import { api } from "../lib/api"
 
 export default function NewReturnedBallot() {
   const navigate = useNavigate()
+  const notify = useNotify()
   const { tenant, loading: loadingTenant } = useTenantConfig()
   const processingMode = loadingTenant ? null : tenant?.processing_mode || "manual"
   const [form, setForm] = useState({ submitted_full_name: "", submitted_address: "" })
@@ -24,9 +26,12 @@ export default function NewReturnedBallot() {
     setSubmitting(true)
     try {
       const { data } = await api.post("/returned-ballots", { ...form, voter_id: voter?.id || null })
+      notify(`Returned ballot ${data.tracking_number} recorded`, "success")
       navigate(`/returned-ballots/${data.id}`)
     } catch (err) {
-      setError(err.response?.data?.detail || "Could not record returned ballot.")
+      const message = err.response?.data?.detail || "Could not record returned ballot."
+      setError(message)
+      notify(message, "error")
     } finally {
       setSubmitting(false)
     }
@@ -46,9 +51,12 @@ export default function NewReturnedBallot() {
       const { data } = await api.post("/returned-ballots/scan", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       })
+      notify(`Returned ballot ${data.tracking_number} recorded from scan`, "success")
       navigate(`/returned-ballots/${data.id}`)
     } catch (err) {
-      setError(err.response?.data?.detail || "Could not process envelope scan.")
+      const message = err.response?.data?.detail || "Could not process envelope scan."
+      setError(message)
+      notify(message, "error")
     } finally {
       setSubmitting(false)
     }

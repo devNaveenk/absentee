@@ -5,6 +5,7 @@ import DetailRow from "../components/DetailRow"
 import Modal, { ModalActions } from "../components/Modal"
 import VerificationChecklist from "../components/VerificationChecklist"
 import VoterSearchInput from "../components/VoterSearchInput"
+import { useNotify } from "../context/NotificationContext"
 import { useAuthedObjectUrl } from "../hooks/useAuthedObjectUrl"
 import { useTenantConfig } from "../hooks/useTenantConfig"
 import { api } from "../lib/api"
@@ -37,6 +38,7 @@ const STATUS_LABELS = {
 export default function ApplicationDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const notify = useNotify()
   const [application, setApplication] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
@@ -89,49 +91,55 @@ export default function ApplicationDetail() {
     application?.voter?.has_signature ? `/voters/${application.voter.id}/signature` : null
   )
 
-  const runAction = async (fn) => {
+  const runAction = async (fn, successMessage) => {
     setActionError("")
     setBusy(true)
     try {
       await fn()
+      if (successMessage) notify(successMessage, "success")
       load()
     } catch (err) {
-      setActionError(err.response?.data?.detail || "Action failed.")
+      const message = err.response?.data?.detail || "Action failed."
+      setActionError(message)
+      notify(message, "error")
     } finally {
       setBusy(false)
     }
   }
 
   const handleMatchVoter = (voter) =>
-    runAction(() => api.post(`/applications/${id}/match-voter`, { voter_id: voter.id }))
+    runAction(() => api.post(`/applications/${id}/match-voter`, { voter_id: voter.id }), `Matched to ${voter.full_name}`)
 
   const handleApprove = () =>
-    runAction(() => api.post(`/applications/${id}/approve`, { verification_checklist: checklist }))
+    runAction(
+      () => api.post(`/applications/${id}/approve`, { verification_checklist: checklist }),
+      "Application approved — ABS Sent"
+    )
 
   const handleReject = () =>
     runAction(async () => {
       await api.post(`/applications/${id}/reject`, { reason: rejectReason })
       setShowReject(false)
-    })
+    }, "Application rejected")
 
   const handleCure = () =>
     runAction(async () => {
       await api.post(`/applications/${id}/cure`, { reason: cureReason, notify_via: notifyVia })
       setShowCure(false)
-    })
+    }, "Moved to Cure — voter will be notified")
 
   const handleSaveEdit = () =>
     runAction(async () => {
       await api.patch(`/applications/${id}`, editForm)
       setEditing(false)
-    })
+    }, "Application fields updated")
 
   const handleReapply = () =>
     runAction(async () => {
       const { data } = await api.post(`/applications/${id}/reapply`, reapplyForm)
       setShowReapply(false)
       navigate(`/applications/${data.id}`)
-    })
+    }, "Reapplication submitted")
 
   if (loading) {
     return (

@@ -1,6 +1,9 @@
 import { Navigate, Route, BrowserRouter as Router, Routes } from "react-router-dom"
+import ConnectivityGate from "./components/ConnectivityGate"
+import ErrorBoundary from "./components/ErrorBoundary"
 import ProtectedRoute from "./components/ProtectedRoute"
 import { AuthProvider } from "./context/AuthContext"
+import { NotificationProvider } from "./context/NotificationContext"
 import ApplicationDetail from "./pages/ApplicationDetail"
 import ApplicationsQueue from "./pages/ApplicationsQueue"
 import Login from "./pages/Login"
@@ -16,9 +19,12 @@ const TENANT_ROLES = ["tenant_admin", "tenant_user"]
 
 export default function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <Routes>
+    <ErrorBoundary>
+      <NotificationProvider>
+        <AuthProvider>
+          <ConnectivityGate>
+            <Router>
+              <Routes>
           <Route path="/login" element={<Login />} />
           <Route
             path="/dashboard"
@@ -92,9 +98,12 @@ export default function App() {
               </ProtectedRoute>
             }
           />
-          <Route path="*" element={<Navigate to="/login" replace />} />
-        </Routes>
-      </Router>
-    </AuthProvider>
+                <Route path="*" element={<Navigate to="/login" replace />} />
+              </Routes>
+            </Router>
+          </ConnectivityGate>
+        </AuthProvider>
+      </NotificationProvider>
+    </ErrorBoundary>
   )
 }

@@ -3,11 +3,13 @@ import { useNavigate } from "react-router-dom"
 import AppShell from "../components/AppShell"
 import BackButton from "../components/BackButton"
 import VoterSearchInput from "../components/VoterSearchInput"
+import { useNotify } from "../context/NotificationContext"
 import { useTenantConfig } from "../hooks/useTenantConfig"
 import { api } from "../lib/api"
 
 export default function NewApplication() {
   const navigate = useNavigate()
+  const notify = useNotify()
   const fileInputRef = useRef(null)
   const { tenant, loading: loadingTenant } = useTenantConfig()
   const processingMode = loadingTenant ? null : tenant?.processing_mode || "manual"
@@ -25,9 +27,12 @@ export default function NewApplication() {
     setSubmitting(true)
     try {
       const { data } = await api.post("/applications", { ...form, voter_id: voter?.id || null })
+      notify(`Application ${data.application_number} created`, "success")
       navigate(`/applications/${data.id}`)
     } catch (err) {
-      setError(err.response?.data?.detail || "Could not create application.")
+      const message = err.response?.data?.detail || "Could not create application."
+      setError(message)
+      notify(message, "error")
     } finally {
       setSubmitting(false)
     }
@@ -47,9 +52,12 @@ export default function NewApplication() {
       const { data } = await api.post("/applications/scan", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       })
+      notify(`Application ${data.application_number} created from scan`, "success")
       navigate(`/applications/${data.id}`)
     } catch (err) {
-      setError(err.response?.data?.detail || "Could not process scan.")
+      const message = err.response?.data?.detail || "Could not process scan."
+      setError(message)
+      notify(message, "error")
     } finally {
       setSubmitting(false)
     }

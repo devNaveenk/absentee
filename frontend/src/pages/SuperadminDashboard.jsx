@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react"
 import AppShell from "../components/AppShell"
 import Modal from "../components/Modal"
+import { useNotify } from "../context/NotificationContext"
 import { api } from "../lib/api"
 
 const LOGS_PAGE_SIZE = 50
 
 export default function SuperadminDashboard() {
+  const notify = useNotify()
   const [tenants, setTenants] = useState([])
   const [summary, setSummary] = useState([])
   const [logs, setLogs] = useState([])
@@ -66,16 +68,26 @@ export default function SuperadminDashboard() {
   const saveEdit = async (tenantId) => {
     const value = Number(editValue)
     if (!Number.isFinite(value) || value <= 0) return
-    await api.patch(`/superadmin/tenants/${tenantId}/rate-limit`, { requests_per_minute: value })
-    setEditingId(null)
-    loadAll()
+    try {
+      await api.patch(`/superadmin/tenants/${tenantId}/rate-limit`, { requests_per_minute: value })
+      notify("Rate limit updated", "success")
+      setEditingId(null)
+      loadAll()
+    } catch (err) {
+      notify(err.response?.data?.detail || "Could not update rate limit.", "error")
+    }
   }
 
   const toggleStatus = async (tenant) => {
-    await api.patch(`/superadmin/tenants/${tenant.id}/status`, null, {
-      params: { is_active: !tenant.is_active },
-    })
-    loadAll()
+    try {
+      await api.patch(`/superadmin/tenants/${tenant.id}/status`, null, {
+        params: { is_active: !tenant.is_active },
+      })
+      notify(`${tenant.name} ${tenant.is_active ? "suspended" : "reactivated"}`, "success")
+      loadAll()
+    } catch (err) {
+      notify(err.response?.data?.detail || "Could not update tenant status.", "error")
+    }
   }
 
   const totalRequests = summary.reduce((sum, s) => sum + s.total_requests, 0)
@@ -424,6 +436,7 @@ const GA_DEFAULT_METHODS = ["full_name", "address", "dl_number"]
 const OTHER_DEFAULT_METHODS = ["full_name", "address", "signature"]
 
 function CreateTenantModal({ onClose, onCreated }) {
+  const notify = useNotify()
   const [form, setForm] = useState({
     name: "",
     slug: "",
@@ -465,10 +478,13 @@ function CreateTenantModal({ onClose, onCreated }) {
         jurisdiction_state: form.jurisdiction_state ? form.jurisdiction_state.toUpperCase() : null,
         verification_methods: verificationMethods,
       })
+      notify(`Tenant ${form.name} created`, "success")
       onCreated()
       onClose()
     } catch (err) {
-      setError(err.response?.data?.detail || "Could not create tenant.")
+      const message = err.response?.data?.detail || "Could not create tenant."
+      setError(message)
+      notify(message, "error")
     } finally {
       setSubmitting(false)
     }

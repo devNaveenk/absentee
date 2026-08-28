@@ -1,6 +1,7 @@
 import { NavLink, useNavigate } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 import Logo from "./Logo"
+import PageTransition from "./PageTransition"
 
 const TENANT_NAV = [
   { to: "/dashboard", label: "Dashboard" },
@@ -94,7 +95,9 @@ export default function AppShell({ children, role }) {
           </nav>
         )}
       </header>
-      <main>{children}</main>
+      <main>
+        <PageTransition>{children}</PageTransition>
+      </main>
     </div>
   )
 }

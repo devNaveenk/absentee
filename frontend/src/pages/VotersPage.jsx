@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import AppShell from "../components/AppShell"
 import Modal, { ModalActions } from "../components/Modal"
+import { useNotify } from "../context/NotificationContext"
 import { api } from "../lib/api"
 
 const PAGE_SIZE = 25
@@ -200,6 +201,7 @@ export default function VotersPage() {
 }
 
 function VoterFormModal({ voter, onClose, onSaved }) {
+  const notify = useNotify()
   const isEdit = !!voter
   const [form, setForm] = useState(
     voter
@@ -247,9 +249,12 @@ function VoterFormModal({ voter, onClose, onSaved }) {
         })
       }
 
+      notify(isEdit ? `Updated ${form.full_name}` : `Added ${form.full_name} to the voter roll`, "success")
       onSaved()
     } catch (err) {
-      setError(err.response?.data?.detail || "Could not save voter.")
+      const message = err.response?.data?.detail || "Could not save voter."
+      setError(message)
+      notify(message, "error")
     } finally {
       setSubmitting(false)
     }
@@ -329,6 +334,7 @@ function downloadVoterCsvTemplate() {
 }
 
 function ImportCsvModal({ onClose, onImported }) {
+  const notify = useNotify()
   const [file, setFile] = useState(null)
   const [error, setError] = useState("")
   const [submitting, setSubmitting] = useState(false)
@@ -348,9 +354,12 @@ function ImportCsvModal({ onClose, onImported }) {
         headers: { "Content-Type": "multipart/form-data" },
       })
       setSummary(data)
+      notify(`Imported: ${data.created} created, ${data.updated} updated, ${data.skipped} skipped`, data.skipped > 0 ? "warning" : "success")
       onImported()
     } catch (err) {
-      setError(err.response?.data?.detail || "Could not import CSV.")
+      const message = err.response?.data?.detail || "Could not import CSV."
+      setError(message)
+      notify(message, "error")
     } finally {
       setSubmitting(false)
     }

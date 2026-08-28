@@ -5,6 +5,7 @@ import DetailRow from "../components/DetailRow"
 import Modal, { ModalActions } from "../components/Modal"
 import VerificationChecklist from "../components/VerificationChecklist"
 import VoterSearchInput from "../components/VoterSearchInput"
+import { useNotify } from "../context/NotificationContext"
 import { useAuthedObjectUrl } from "../hooks/useAuthedObjectUrl"
 import { useTenantConfig } from "../hooks/useTenantConfig"
 import { api } from "../lib/api"
@@ -25,6 +26,7 @@ const STATUS_LABELS = {
 
 export default function ReturnedBallotDetail() {
   const { id } = useParams()
+  const notify = useNotify()
   const [ballot, setBallot] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
@@ -53,27 +55,34 @@ export default function ReturnedBallotDetail() {
   const envelopeImageUrl = useAuthedObjectUrl(ballot?.has_envelope_scan ? `/returned-ballots/${id}/envelope-image` : null)
   const signatureUrl = useAuthedObjectUrl(ballot?.voter?.has_signature ? `/voters/${ballot.voter.id}/signature` : null)
 
-  const runAction = async (fn) => {
+  const runAction = async (fn, successMessage) => {
     setActionError("")
     setBusy(true)
     try {
       await fn()
+      if (successMessage) notify(successMessage, "success")
       load()
     } catch (err) {
-      setActionError(err.response?.data?.detail || "Action failed.")
+      const message = err.response?.data?.detail || "Action failed."
+      setActionError(message)
+      notify(message, "error")
     } finally {
       setBusy(false)
     }
   }
 
-  const handleMatchVoter = (voter) => runAction(() => api.post(`/returned-ballots/${id}/match-voter`, { voter_id: voter.id }))
+  const handleMatchVoter = (voter) =>
+    runAction(() => api.post(`/returned-ballots/${id}/match-voter`, { voter_id: voter.id }), `Matched to ${voter.full_name}`)
   const handleVerify = () =>
-    runAction(() => api.post(`/returned-ballots/${id}/verify`, { verification_checklist: checklist }))
+    runAction(
+      () => api.post(`/returned-ballots/${id}/verify`, { verification_checklist: checklist }),
+      "Ballot verified — routed to Final Bin"
+    )
   const handleReject = () =>
     runAction(async () => {
       await api.post(`/returned-ballots/${id}/reject`, { reason: rejectReason })
       setShowReject(false)
-    })
+    }, "Ballot rejected")
 
   if (loading) {
     return (
