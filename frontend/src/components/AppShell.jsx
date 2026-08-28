@@ -24,9 +24,9 @@ export default function AppShell({ children, role }) {
         className="border-b sticky top-0 z-10"
         style={{ backgroundColor: "var(--color-surface)", borderColor: "var(--color-border)" }}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 shrink-0">
-            <Logo size={26} />
+            <Logo size={40} />
             {role === "superadmin" && (
               <span
                 className="text-xs font-medium px-2 py-0.5 rounded-full"
