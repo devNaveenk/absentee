@@ -1,0 +1,79 @@
+@import "tailwindcss";
+
+:root {
+  --color-primary: #0f766e;
+  --color-on-primary: #ffffff;
+  --color-secondary: #14b8a6;
+  --color-accent: #0369a1;
+  --color-background: #f0fdfa;
+  --color-surface: #ffffff;
+  --color-foreground: #134e4a;
+  --color-muted: #5f7c7a;
+  --color-muted-bg: #e8f0f3;
+  --color-border: #99f6e4;
+  --color-destructive: #dc2626;
+  --color-ring: #0f766e;
+  --font-body: "Fira Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Fira Code", ui-monospace, monospace;
+}
+
+:root[data-theme="dark"],
+:root:not([data-theme="light"]) {
+  @media (prefers-color-scheme: dark) {
+    --color-primary: #2dd4bf;
+    --color-on-primary: #062a27;
+    --color-secondary: #14b8a6;
+    --color-accent: #38bdf8;
+    --color-background: #0a1817;
+    --color-surface: #0f2422;
+    --color-foreground: #ecfdf9;
+    --color-muted: #9cbdb9;
+    --color-muted-bg: #14302d;
+    --color-border: #1f4a45;
+    --color-destructive: #f87171;
+    --color-ring: #2dd4bf;
+  }
+}
+
+:root[data-theme="dark"] {
+  --color-primary: #2dd4bf;
+  --color-on-primary: #062a27;
+  --color-secondary: #14b8a6;
+  --color-accent: #38bdf8;
+  --color-background: #0a1817;
+  --color-surface: #0f2422;
+  --color-foreground: #ecfdf9;
+  --color-muted: #9cbdb9;
+  --color-muted-bg: #14302d;
+  --color-border: #1f4a45;
+  --color-destructive: #f87171;
+  --color-ring: #2dd4bf;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-mono-num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-ring);
+  outline-offset: 2px;
+}
