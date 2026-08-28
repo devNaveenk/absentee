@@ -290,6 +290,44 @@ function VoterFormModal({ voter, onClose, onSaved }) {
   )
 }
 
+const CSV_TEMPLATE_HEADERS = [
+  "full_name",
+  "registered_address",
+  "external_voter_id",
+  "date_of_birth",
+  "dl_number",
+  "veteran_id",
+  "passport_id",
+]
+const CSV_TEMPLATE_EXAMPLE_ROW = [
+  "Jane Q. Voter",
+  "123 Main St, Springfield, GA 30301",
+  "GA-000123456",
+  "1985-06-15",
+  "012345678",
+  "",
+  "",
+]
+
+function csvEscape(value) {
+  const str = String(value ?? "")
+  return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str
+}
+
+function downloadVoterCsvTemplate() {
+  const rows = [CSV_TEMPLATE_HEADERS, CSV_TEMPLATE_EXAMPLE_ROW]
+  const csvContent = rows.map((row) => row.map(csvEscape).join(",")).join("\r\n")
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement("a")
+  link.href = url
+  link.download = "voter-roll-template.csv"
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+}
+
 function ImportCsvModal({ onClose, onImported }) {
   const [file, setFile] = useState(null)
   const [error, setError] = useState("")
@@ -320,11 +358,23 @@ function ImportCsvModal({ onClose, onImported }) {
 
   return (
     <Modal title="Import Voter Roll (CSV)" onClose={onClose}>
-      <p className="text-sm mb-4" style={{ color: "var(--color-muted)" }}>
+      <p className="text-sm mb-3" style={{ color: "var(--color-muted)" }}>
         Required columns: <code>full_name</code>, <code>registered_address</code>. Optional: <code>external_voter_id</code>,{" "}
         <code>date_of_birth</code> (YYYY-MM-DD), <code>dl_number</code>, <code>veteran_id</code>, <code>passport_id</code>. Rows with a
         matching <code>external_voter_id</code> update the existing voter instead of creating a duplicate.
       </p>
+
+      <button
+        type="button"
+        onClick={downloadVoterCsvTemplate}
+        className="cursor-pointer inline-flex items-center gap-1.5 text-sm font-medium underline mb-4"
+        style={{ color: "var(--color-accent)" }}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+          <path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        Download CSV template
+      </button>
 
       {error && (
         <div role="alert" className="mb-4 rounded-lg px-3 py-2 text-sm" style={{ backgroundColor: "var(--color-destructive-bg)", color: "var(--color-destructive)" }}>
