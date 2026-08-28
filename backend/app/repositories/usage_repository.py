@@ -10,11 +10,17 @@ class UsageLogRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def list(self, tenant_id: int | None, limit: int) -> list[UsageLog]:
+    def list_page(self, tenant_id: int | None, *, offset: int, limit: int) -> list[UsageLog]:
         q = self.db.query(UsageLog).order_by(UsageLog.created_at.desc())
         if tenant_id is not None:
             q = q.filter(UsageLog.tenant_id == tenant_id)
-        return q.limit(limit).all()
+        return q.offset(offset).limit(limit).all()
+
+    def count(self, tenant_id: int | None) -> int:
+        q = self.db.query(UsageLog)
+        if tenant_id is not None:
+            q = q.filter(UsageLog.tenant_id == tenant_id)
+        return q.count()
 
     def summary_since(self, since: datetime):
         return (

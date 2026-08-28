@@ -14,8 +14,8 @@ class UsageService:
         self.usage = usage or UsageLogRepository(db)
         self.tenants = tenants or TenantRepository(db)
 
-    def list_logs(self, tenant_id: int | None, limit: int):
-        return self.usage.list(tenant_id, limit)
+    def list_logs(self, tenant_id: int | None, *, offset: int, limit: int) -> tuple[list, int]:
+        return self.usage.list_page(tenant_id, offset=offset, limit=limit), self.usage.count(tenant_id)
 
     def summary(self, hours: int) -> list[UsageSummary]:
         since = (datetime.now(timezone.utc) - timedelta(hours=hours)).replace(tzinfo=None)

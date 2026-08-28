@@ -3,10 +3,15 @@ import AppShell from "../components/AppShell"
 import Modal from "../components/Modal"
 import { api } from "../lib/api"
 
+const LOGS_PAGE_SIZE = 50
+
 export default function SuperadminDashboard() {
   const [tenants, setTenants] = useState([])
   const [summary, setSummary] = useState([])
   const [logs, setLogs] = useState([])
+  const [logsTotal, setLogsTotal] = useState(0)
+  const [logsOffset, setLogsOffset] = useState(0)
+  const [logsLoading, setLogsLoading] = useState(true)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [editingId, setEditingId] = useState(null)
@@ -17,14 +22,12 @@ export default function SuperadminDashboard() {
     setLoading(true)
     setError("")
     try {
-      const [tenantsRes, summaryRes, logsRes] = await Promise.all([
+      const [tenantsRes, summaryRes] = await Promise.all([
         api.get("/superadmin/tenants"),
         api.get("/superadmin/usage-summary", { params: { hours: 24 } }),
-        api.get("/superadmin/usage-logs", { params: { limit: 50 } }),
       ])
       setTenants(tenantsRes.data)
       setSummary(summaryRes.data)
-      setLogs(logsRes.data)
     } catch {
       setError("Could not load dashboard data. Please retry.")
     } finally {
@@ -32,9 +35,28 @@ export default function SuperadminDashboard() {
     }
   }
 
+  const loadLogs = async () => {
+    setLogsLoading(true)
+    try {
+      const res = await api.get("/superadmin/usage-logs", {
+        params: { offset: logsOffset, limit: LOGS_PAGE_SIZE },
+      })
+      setLogs(res.data.items)
+      setLogsTotal(res.data.total)
+    } catch {
+      setError("Could not load usage logs. Please retry.")
+    } finally {
+      setLogsLoading(false)
+    }
+  }
+
   useEffect(() => {
     loadAll()
   }, [])
+
+  useEffect(() => {
+    loadLogs()
+  }, [logsOffset])
 
   const startEdit = (tenant) => {
     setEditingId(tenant.id)
@@ -241,44 +263,75 @@ export default function SuperadminDashboard() {
         </Section>
 
         <Section title="Recent Requests">
-          {loading ? (
+          {logsLoading ? (
             <SkeletonRows rows={4} />
           ) : logs.length === 0 ? (
             <EmptyState message="No requests logged yet." />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left" style={{ color: "var(--color-muted)" }}>
-                    <th className="py-2 pr-4 font-medium">Time</th>
-                    <th className="py-2 pr-4 font-medium">Method</th>
-                    <th className="py-2 pr-4 font-medium">Path</th>
-                    <th className="py-2 pr-4 font-medium">Status</th>
-                    <th className="py-2 pr-4 font-medium">Duration</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {logs.map((log) => (
-                    <tr key={log.id} className="border-t" style={{ borderColor: "var(--color-border)" }}>
-                      <td className="py-2.5 pr-4 whitespace-nowrap" style={{ color: "var(--color-muted)" }}>
-                        {new Date(log.created_at).toLocaleTimeString()}
-                      </td>
-                      <td className="py-2.5 pr-4 font-mono-num">{log.method}</td>
-                      <td className="py-2.5 pr-4 truncate max-w-xs">{log.path}</td>
-                      <td className="py-2.5 pr-4">
-                        <span
-                          className="font-mono-num"
-                          style={{ color: log.status_code >= 400 ? "var(--color-destructive)" : "var(--color-primary)" }}
-                        >
-                          {log.status_code}
-                        </span>
-                      </td>
-                      <td className="py-2.5 pr-4 font-mono-num">{log.duration_ms} ms</td>
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left" style={{ color: "var(--color-muted)" }}>
+                      <th className="py-2 pr-4 font-medium">Time</th>
+                      <th className="py-2 pr-4 font-medium">Method</th>
+                      <th className="py-2 pr-4 font-medium">Path</th>
+                      <th className="py-2 pr-4 font-medium">Status</th>
+                      <th className="py-2 pr-4 font-medium">Duration</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {logs.map((log) => (
+                      <tr key={log.id} className="border-t" style={{ borderColor: "var(--color-border)" }}>
+                        <td className="py-2.5 pr-4 whitespace-nowrap" style={{ color: "var(--color-muted)" }}>
+                          {new Date(log.created_at).toLocaleTimeString()}
+                        </td>
+                        <td className="py-2.5 pr-4 font-mono-num">{log.method}</td>
+                        <td className="py-2.5 pr-4 truncate max-w-xs">{log.path}</td>
+                        <td className="py-2.5 pr-4">
+                          <span
+                            className="font-mono-num"
+                            style={{ color: log.status_code >= 400 ? "var(--color-destructive)" : "var(--color-primary)" }}
+                          >
+                            {log.status_code}
+                          </span>
+                        </td>
+                        <td className="py-2.5 pr-4 font-mono-num">{log.duration_ms} ms</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {logsTotal > LOGS_PAGE_SIZE && (
+                <div
+                  className="flex items-center justify-between pt-4 mt-2 border-t text-sm"
+                  style={{ borderColor: "var(--color-border)", color: "var(--color-muted)" }}
+                >
+                  <span>
+                    Showing {logsOffset + 1}–{Math.min(logsOffset + LOGS_PAGE_SIZE, logsTotal)} of {logsTotal.toLocaleString()}
+                  </span>
+                  <div className="flex gap-2">
+                    <button
+                      disabled={logsOffset === 0}
+                      onClick={() => setLogsOffset((o) => Math.max(0, o - LOGS_PAGE_SIZE))}
+                      className="cursor-pointer rounded-md px-3 py-1.5 border disabled:opacity-40"
+                      style={{ borderColor: "var(--color-border)" }}
+                    >
+                      Previous
+                    </button>
+                    <button
+                      disabled={logsOffset + LOGS_PAGE_SIZE >= logsTotal}
+                      onClick={() => setLogsOffset((o) => o + LOGS_PAGE_SIZE)}
+                      className="cursor-pointer rounded-md px-3 py-1.5 border disabled:opacity-40"
+                      style={{ borderColor: "var(--color-border)" }}
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </Section>
       </div>

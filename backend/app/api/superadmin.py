@@ -9,7 +9,7 @@ from app.schemas.schemas import (
     TenantConfigUpdate,
     TenantCreate,
     TenantOut,
-    UsageLogOut,
+    UsageLogPage,
     UsageSummary,
 )
 from app.services.tenant_service import TenantService
@@ -51,13 +51,15 @@ def update_tenant_config(tenant_id: int, payload: TenantConfigUpdate, service: T
     return tenant_to_out(service.update_config(tenant_id, payload))
 
 
-@router.get("/usage-logs", response_model=list[UsageLogOut])
+@router.get("/usage-logs", response_model=UsageLogPage)
 def usage_logs(
     tenant_id: int | None = None,
-    limit: int = Query(100, le=1000),
+    offset: int = Query(0, ge=0),
+    limit: int = Query(50, le=200),
     service: UsageService = Depends(get_usage_service),
 ):
-    return service.list_logs(tenant_id, limit)
+    items, total = service.list_logs(tenant_id, offset=offset, limit=limit)
+    return UsageLogPage(items=items, total=total, offset=offset, limit=limit)
 
 
 @router.get("/usage-summary", response_model=list[UsageSummary])

@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import AppShell from "../components/AppShell"
+import BackButton from "../components/BackButton"
 import VoterSearchInput from "../components/VoterSearchInput"
 import { useTenantConfig } from "../hooks/useTenantConfig"
 import { api } from "../lib/api"
@@ -56,6 +57,7 @@ export default function NewReturnedBallot() {
   return (
     <AppShell role="tenant">
       <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8">
+        <BackButton fallback="/returned-ballots" />
         <h1 className="text-2xl font-semibold mb-1" style={{ color: "var(--color-foreground)" }}>
           Record Returned Ballot
         </h1>

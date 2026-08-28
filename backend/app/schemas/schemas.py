@@ -85,6 +85,13 @@ class UsageLogOut(BaseModel):
         from_attributes = True
 
 
+class UsageLogPage(BaseModel):
+    items: list[UsageLogOut]
+    total: int
+    offset: int
+    limit: int
+
+
 class UsageSummary(BaseModel):
     tenant_id: int | None
     tenant_name: str | None
