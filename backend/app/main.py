@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import applications, auth, dashboard, returned_ballots, superadmin, tenant, voters
+from app.api import applications, auth, dashboard, returned_ballots, superadmin, tenant, tenant_settings, voters
 from app.core.config import settings
 from app.core.exceptions import DomainError
 from app.core.middleware import UsageAndRateLimitMiddleware
@@ -27,6 +27,7 @@ async def domain_error_handler(request: Request, exc: DomainError) -> JSONRespon
 app.include_router(auth.router)
 app.include_router(superadmin.router)
 app.include_router(tenant.router)
+app.include_router(tenant_settings.router)
 app.include_router(voters.router)
 app.include_router(applications.router)
 app.include_router(returned_ballots.router)

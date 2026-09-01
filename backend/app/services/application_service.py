@@ -4,8 +4,9 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError, ValidationError
 from app.domain.identifiers import generate_code
+from app.domain.reasons import validate_reason
 from app.domain.verification import missing_verification_checks
-from app.models.models import AbsenteeApplication, ApplicationStatus, CureNotificationMethod, CureReason, RejectionReason, User
+from app.models.models import AbsenteeApplication, ApplicationStatus, CureNotificationMethod, User
 from app.repositories.application_repository import ApplicationRepository
 from app.repositories.tenant_repository import TenantRepository
 from app.repositories.voter_repository import VoterRepository
@@ -65,12 +66,30 @@ class ApplicationService:
             raise NotFoundError("Scan file missing")
         return path
 
+    def get_signature_image_path(self, tenant_id: int, application_id: int):
+        app_ = self.get_application(tenant_id, application_id)
+        if not app_.signature_image_path:
+            raise NotFoundError("No signature on file for this application")
+        path = self.storage.resolve(app_.signature_image_path)
+        if not path.exists():
+            raise NotFoundError("Signature file missing")
+        return path
+
+    def set_signature(self, tenant_id: int, application_id: int, filename: str, content: bytes) -> AbsenteeApplication:
+        app_ = self.get_application(tenant_id, application_id)
+        app_.signature_image_path = self.storage.save(tenant_id, "application_signatures", filename, content)
+        self.applications.commit()
+        return self.get_application(tenant_id, app_.id)
+
     def create_manual(self, tenant_id: int, actor: User, payload) -> AbsenteeApplication:
         voter = None
         if payload.voter_id is not None:
             voter = self.voters.get(tenant_id, payload.voter_id)
             if not voter:
                 raise NotFoundError("Voter not found")
+        if payload.received_via:
+            tenant = self.tenants.get(tenant_id)
+            validate_reason(tenant.received_via_options, payload.received_via)
 
         app_ = self.applications.add(
             AbsenteeApplication(
@@ -80,6 +99,8 @@ class ApplicationService:
                 submitted_full_name=payload.submitted_full_name,
                 submitted_address=payload.submitted_address,
                 submitted_dl_number=payload.submitted_dl_number,
+                mailing_address=payload.mailing_address,
+                received_via=payload.received_via,
                 status=ApplicationStatus.unprocessed,
             )
         )
@@ -118,8 +139,12 @@ class ApplicationService:
         if app_.status != ApplicationStatus.unprocessed:
             raise ValidationError("Only unprocessed applications can be edited")
 
+        if payload.received_via:
+            tenant = self.tenants.get(tenant_id)
+            validate_reason(tenant.received_via_options, payload.received_via)
+
         changed = {}
-        for field in ("submitted_full_name", "submitted_address", "submitted_dl_number"):
+        for field in ("submitted_full_name", "submitted_address", "submitted_dl_number", "mailing_address", "received_via"):
             value = getattr(payload, field)
             if value is not None:
                 setattr(app_, field, value)
@@ -161,23 +186,34 @@ class ApplicationService:
         self.applications.add_event(
             app_, "approved", actor, metadata={"verification_checklist": verification_checklist}
         )
-        self.applications.add_event(app_, "abs_sent", actor, metadata={"note": "ballot packet queued for mailing"})
-        app_.status = ApplicationStatus.abs_sent
+        app_.status = ApplicationStatus.approved
         app_.processed_by_user_id = actor.id
         app_.processed_at = _now()
         self.applications.commit()
         return self.get_application(tenant_id, app_.id)
 
-    def reject(self, tenant_id: int, actor: User, application_id: int, reason: RejectionReason) -> AbsenteeApplication:
+    def mark_abs_sent(self, tenant_id: int, actor: User, application_id: int) -> AbsenteeApplication:
+        app_ = self.get_application(tenant_id, application_id)
+        if app_.status != ApplicationStatus.approved:
+            raise ValidationError("Only approved applications can be marked as ABS Sent")
+
+        app_.status = ApplicationStatus.abs_sent
+        self.applications.add_event(app_, "abs_sent", actor, metadata={"note": "ballot packet mailed"})
+        self.applications.commit()
+        return self.get_application(tenant_id, app_.id)
+
+    def reject(self, tenant_id: int, actor: User, application_id: int, reason: str) -> AbsenteeApplication:
         app_ = self.get_application(tenant_id, application_id)
         if app_.status != ApplicationStatus.unprocessed:
             raise ValidationError("Only unprocessed applications can be rejected")
+        tenant = self.tenants.get(tenant_id)
+        validate_reason(tenant.application_rejection_reasons, reason)
 
         app_.status = ApplicationStatus.rejected
         app_.rejection_reason = reason
         app_.processed_by_user_id = actor.id
         app_.processed_at = _now()
-        self.applications.add_event(app_, "rejected", actor, reason=reason.value)
+        self.applications.add_event(app_, "rejected", actor, reason=reason)
         self.applications.commit()
         return self.get_application(tenant_id, app_.id)
 
@@ -186,15 +222,17 @@ class ApplicationService:
         tenant_id: int,
         actor: User,
         application_id: int,
-        reason: CureReason,
+        reason: str,
         notify_via: CureNotificationMethod,
     ) -> AbsenteeApplication:
         app_ = self.get_application(tenant_id, application_id)
         if app_.status != ApplicationStatus.unprocessed:
             raise ValidationError("Only unprocessed applications can be moved to cure")
+        tenant = self.tenants.get(tenant_id)
+        validate_reason(tenant.application_cure_reasons, reason)
 
         voter_name = app_.voter.full_name if app_.voter else app_.submitted_full_name
-        delivery = self.notifications.send_cure_notice(voter_name=voter_name, method=notify_via.value, reason=reason.value)
+        delivery = self.notifications.send_cure_notice(voter_name=voter_name, method=notify_via.value, reason=reason)
 
         app_.status = ApplicationStatus.cure
         app_.cure_reason = reason
@@ -202,7 +240,7 @@ class ApplicationService:
         app_.processed_by_user_id = actor.id
         app_.processed_at = _now()
         self.applications.add_event(
-            app_, "cure_initiated", actor, reason=reason.value, metadata={"notify_via": notify_via.value, "delivery": delivery}
+            app_, "cure_initiated", actor, reason=reason, metadata={"notify_via": notify_via.value, "delivery": delivery}
         )
         self.applications.commit()
         return self.get_application(tenant_id, app_.id)
@@ -222,6 +260,8 @@ class ApplicationService:
                 submitted_full_name=payload.submitted_full_name,
                 submitted_address=payload.submitted_address,
                 submitted_dl_number=payload.submitted_dl_number,
+                mailing_address=payload.mailing_address,
+                received_via=payload.received_via,
                 status=ApplicationStatus.unprocessed,
             )
         )

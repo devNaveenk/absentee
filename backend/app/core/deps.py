@@ -47,6 +47,14 @@ def require_tenant_user(user: User = Depends(get_current_user)) -> User:
     return user
 
 
+def require_tenant_admin(user: User = Depends(get_current_user)) -> User:
+    if user.role == UserRole.superadmin:
+        return user
+    if not user.tenant_id or user.role != UserRole.tenant_admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant admin access required")
+    return user
+
+
 def tenant_scope(user: User) -> int:
     """The tenant_id a request should be scoped to, or raise if the caller has none.
 

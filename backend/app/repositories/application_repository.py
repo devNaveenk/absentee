@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.models.models import AbsenteeApplication, ApplicationEvent, ApplicationStatus, User
 
 PROCESSED_STATUSES = {
+    ApplicationStatus.approved,
     ApplicationStatus.rejected,
     ApplicationStatus.cure,
     ApplicationStatus.reapproved,

@@ -34,6 +34,7 @@ class ProcessingMode(str, enum.Enum):
 
 class CureNotificationMethod(str, enum.Enum):
     email = "email"
+    sms = "sms"
     mail = "mail"
     both = "both"
 
@@ -65,6 +66,20 @@ DEFAULT_VERIFICATION_METHODS_OTHER = [
     VerificationMethod.signature.value,
 ]
 
+# Tenant-configurable reason/option lists (Configuration -> Settings in the legacy
+# system). Seeded per-tenant at creation with these defaults; each tenant can then
+# edit its own copy via the tenant Settings page without touching Python enums.
+DEFAULT_APPLICATION_REJECTION_REASONS = ["out_of_district", "record_not_found"]
+DEFAULT_APPLICATION_CURE_REASONS = ["name_mismatch", "dl_mismatch", "other"]
+DEFAULT_BALLOT_REJECTION_REASONS = [
+    "already_voted_in_person",
+    "moved_outside_jurisdiction",
+    "deceased",
+    "credential_mismatch",
+    "signature_mismatch",
+]
+DEFAULT_RECEIVED_VIA_OPTIONS = ["mail", "in_person", "online", "drop_box"]
+
 
 class Tenant(Base):
     __tablename__ = "tenants"
@@ -79,6 +94,16 @@ class Tenant(Base):
         Enum(CureNotificationMethod), default=CureNotificationMethod.email
     )
     verification_methods: Mapped[list] = mapped_column(JSON, default=list)
+
+    application_rejection_reasons: Mapped[list] = mapped_column(JSON, default=list)
+    application_cure_reasons: Mapped[list] = mapped_column(JSON, default=list)
+    ballot_rejection_reasons: Mapped[list] = mapped_column(JSON, default=list)
+    received_via_options: Mapped[list] = mapped_column(JSON, default=list)
+
+    display_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    logo_image_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    currency: Mapped[str] = mapped_column(String(3), default="USD")
+
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     users: Mapped[list["User"]] = relationship(back_populates="tenant", cascade="all, delete-orphan")
@@ -151,21 +176,11 @@ class Voter(Base):
 
 class ApplicationStatus(str, enum.Enum):
     unprocessed = "unprocessed"
+    approved = "approved"
     rejected = "rejected"
     cure = "cure"
     reapproved = "reapproved"
     abs_sent = "abs_sent"
-
-
-class RejectionReason(str, enum.Enum):
-    out_of_district = "out_of_district"
-    record_not_found = "record_not_found"
-
-
-class CureReason(str, enum.Enum):
-    name_mismatch = "name_mismatch"
-    dl_mismatch = "dl_mismatch"
-    other = "other"
 
 
 class AbsenteeApplication(Base):
@@ -189,12 +204,15 @@ class AbsenteeApplication(Base):
     submitted_full_name: Mapped[str] = mapped_column(String(255), nullable=False)
     submitted_address: Mapped[str] = mapped_column(String(500), nullable=False)
     submitted_dl_number: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    mailing_address: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    received_via: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     scan_image_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    signature_image_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
     ocr_raw_response: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
-    rejection_reason: Mapped[RejectionReason | None] = mapped_column(Enum(RejectionReason), nullable=True)
-    cure_reason: Mapped[CureReason | None] = mapped_column(Enum(CureReason), nullable=True)
+    rejection_reason: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    cure_reason: Mapped[str | None] = mapped_column(String(100), nullable=True)
     cure_notified_via: Mapped[str | None] = mapped_column(String(20), nullable=True)
 
     processed_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
@@ -228,14 +246,6 @@ class ReturnedBallotStatus(str, enum.Enum):
     rejected = "rejected"
 
 
-class ReturnedBallotRejectionReason(str, enum.Enum):
-    already_voted_in_person = "already_voted_in_person"
-    moved_outside_jurisdiction = "moved_outside_jurisdiction"
-    deceased = "deceased"
-    credential_mismatch = "credential_mismatch"
-    signature_mismatch = "signature_mismatch"
-
-
 class ReturnedBallot(Base):
     """Phase 2: receipt and verification of a completed absentee ballot.
 
@@ -265,9 +275,7 @@ class ReturnedBallot(Base):
     envelope_scan_image_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
     ocr_raw_response: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
-    rejection_reason: Mapped[ReturnedBallotRejectionReason | None] = mapped_column(
-        Enum(ReturnedBallotRejectionReason), nullable=True
-    )
+    rejection_reason: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
     processed_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     processed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

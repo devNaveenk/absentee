@@ -1,5 +1,7 @@
 import { NavLink, useNavigate } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
+import { useAuthedObjectUrl } from "../hooks/useAuthedObjectUrl"
+import { useTenantConfig } from "../hooks/useTenantConfig"
 import Logo from "./Logo"
 import PageTransition from "./PageTransition"
 
@@ -13,6 +15,9 @@ const TENANT_NAV = [
 export default function AppShell({ children, role }) {
   const { session, logout } = useAuth()
   const navigate = useNavigate()
+  const { tenant } = useTenantConfig()
+  const logoUrl = useAuthedObjectUrl(tenant?.has_logo ? "/tenant/settings/branding/logo" : null)
+  const nav = session?.role === "tenant_admin" ? [...TENANT_NAV, { to: "/settings", label: "Settings" }] : TENANT_NAV
 
   const handleLogout = () => {
     logout()
@@ -27,7 +32,7 @@ export default function AppShell({ children, role }) {
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 shrink-0">
-            <Logo size={40} />
+            <Logo size={40} src={logoUrl} alt={tenant?.display_name || tenant?.name || "BallotDA"} />
             {role === "superadmin" && (
               <span
                 className="text-xs font-medium px-2 py-0.5 rounded-full"
@@ -40,7 +45,7 @@ export default function AppShell({ children, role }) {
 
           {role !== "superadmin" && (
             <nav className="hidden md:flex items-center gap-1" aria-label="Primary">
-              {TENANT_NAV.map((item) => (
+              {nav.map((item) => (
                 <NavLink
                   key={item.to}
                   to={item.to}
@@ -77,7 +82,7 @@ export default function AppShell({ children, role }) {
         </div>
         {role !== "superadmin" && (
           <nav className="md:hidden flex items-center gap-1 px-4 pb-2 overflow-x-auto" aria-label="Primary">
-            {TENANT_NAV.map((item) => (
+            {nav.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}

@@ -41,10 +41,17 @@ def tenant_to_my_summary(tenant: Tenant) -> MyTenantSummary:
         id=tenant.id,
         name=tenant.name,
         slug=tenant.slug,
+        display_name=tenant.display_name,
+        has_logo=bool(tenant.logo_image_path),
+        currency=tenant.currency,
         requests_per_minute=tenant.rate_limit.requests_per_minute if tenant.rate_limit else None,
         processing_mode=tenant.processing_mode.value,
         jurisdiction_state=tenant.jurisdiction_state,
         verification_methods=tenant.verification_methods or [],
+        application_rejection_reasons=tenant.application_rejection_reasons or [],
+        application_cure_reasons=tenant.application_cure_reasons or [],
+        ballot_rejection_reasons=tenant.ballot_rejection_reasons or [],
+        received_via_options=tenant.received_via_options or [],
     )
 
 
@@ -116,11 +123,14 @@ def application_to_out(app_: AbsenteeApplication) -> ApplicationOut:
         submitted_full_name=app_.submitted_full_name,
         submitted_address=app_.submitted_address,
         submitted_dl_number=app_.submitted_dl_number,
+        mailing_address=app_.mailing_address,
+        received_via=app_.received_via,
         voter_id=app_.voter_id,
         voter=voter_to_out(app_.voter) if app_.voter else None,
         parent_application_id=app_.parent_application_id,
         is_reapproval=app_.is_reapproval,
         has_scan_image=bool(app_.scan_image_path),
+        has_signature=bool(app_.signature_image_path),
         rejection_reason=app_.rejection_reason,
         cure_reason=app_.cure_reason,
         cure_notified_via=app_.cure_notified_via,
@@ -155,6 +165,7 @@ def returned_ballot_to_out(ballot: ReturnedBallot) -> ReturnedBallotOut:
             submitted_full_name=a.submitted_full_name,
             submitted_address=a.submitted_address,
             submitted_dl_number=a.submitted_dl_number,
+            has_signature=bool(a.signature_image_path),
             processed_at=a.processed_at,
         )
     return ReturnedBallotOut(

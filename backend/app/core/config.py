@@ -9,6 +9,14 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173"
     default_rate_limit_per_minute: int = 120
 
+    # Notification providers -- unset until the client provides real credentials.
+    # TODO: fill in when client provides credentials.
+    postmark_api_key: str | None = None
+    postmark_from_email: str | None = None
+    twilio_account_sid: str | None = None
+    twilio_auth_token: str | None = None
+    twilio_from_number: str | None = None
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     @property

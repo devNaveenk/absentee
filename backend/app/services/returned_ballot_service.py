@@ -4,8 +4,9 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError, ValidationError
 from app.domain.identifiers import generate_code
+from app.domain.reasons import validate_reason
 from app.domain.verification import missing_verification_checks
-from app.models.models import ReturnedBallot, ReturnedBallotRejectionReason, ReturnedBallotStatus, User
+from app.models.models import ReturnedBallot, ReturnedBallotStatus, User
 from app.repositories.returned_ballot_repository import ReturnedBallotRepository
 from app.repositories.tenant_repository import TenantRepository
 from app.repositories.voter_repository import VoterRepository
@@ -147,17 +148,17 @@ class ReturnedBallotService:
         self.ballots.commit()
         return self.get_ballot(tenant_id, ballot.id)
 
-    def reject(
-        self, tenant_id: int, actor: User, ballot_id: int, reason: ReturnedBallotRejectionReason
-    ) -> ReturnedBallot:
+    def reject(self, tenant_id: int, actor: User, ballot_id: int, reason: str) -> ReturnedBallot:
         ballot = self.get_ballot(tenant_id, ballot_id)
         if ballot.status != ReturnedBallotStatus.received:
             raise ValidationError("Only pending ballots can be rejected")
+        tenant = self.tenants.get(tenant_id)
+        validate_reason(tenant.ballot_rejection_reasons, reason)
 
         ballot.status = ReturnedBallotStatus.rejected
         ballot.rejection_reason = reason
         ballot.processed_by_user_id = actor.id
         ballot.processed_at = _now()
-        self.ballots.add_event(ballot, "rejected", actor, reason=reason.value)
+        self.ballots.add_event(ballot, "rejected", actor, reason=reason)
         self.ballots.commit()
         return self.get_ballot(tenant_id, ballot.id)

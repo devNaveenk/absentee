@@ -10,29 +10,24 @@ import { useAuthedObjectUrl } from "../hooks/useAuthedObjectUrl"
 import { useTenantConfig } from "../hooks/useTenantConfig"
 import { api } from "../lib/api"
 
-const REJECTION_REASONS = [
-  { value: "out_of_district", label: "Out of District" },
-  { value: "record_not_found", label: "Record Not Found" },
-]
-
-const CURE_REASONS = [
-  { value: "name_mismatch", label: "Name / spelling mismatch" },
-  { value: "dl_mismatch", label: "Driver's License mismatch" },
-  { value: "other", label: "Other discrepancy" },
-]
-
 const NOTIFY_OPTIONS = [
   { value: "email", label: "Email" },
+  { value: "sms", label: "SMS" },
   { value: "mail", label: "Physical mail" },
   { value: "both", label: "Email + physical mail" },
 ]
 
 const STATUS_LABELS = {
   unprocessed: "Unprocessed",
-  abs_sent: "Approved — ABS Sent",
+  approved: "Approved — Pending ABS Mail-out",
+  abs_sent: "ABS Sent",
   rejected: "Rejected",
   cure: "Cure",
   reapproved: "Reapproved",
+}
+
+function optionList(values) {
+  return (values || []).map((v) => ({ value: v, label: v.replaceAll("_", " ") }))
 }
 
 export default function ApplicationDetail() {
@@ -46,21 +41,42 @@ export default function ApplicationDetail() {
   const [busy, setBusy] = useState(false)
 
   const [showReject, setShowReject] = useState(false)
-  const [rejectReason, setRejectReason] = useState(REJECTION_REASONS[0].value)
+  const [rejectReason, setRejectReason] = useState("")
 
   const [showCure, setShowCure] = useState(false)
-  const [cureReason, setCureReason] = useState(CURE_REASONS[0].value)
+  const [cureReason, setCureReason] = useState("")
   const [notifyVia, setNotifyVia] = useState("email")
 
   const [showReapply, setShowReapply] = useState(false)
-  const [reapplyForm, setReapplyForm] = useState({ submitted_full_name: "", submitted_address: "", submitted_dl_number: "" })
+  const [reapplyForm, setReapplyForm] = useState({
+    submitted_full_name: "",
+    submitted_address: "",
+    submitted_dl_number: "",
+    mailing_address: "",
+    received_via: "",
+  })
 
   const [editing, setEditing] = useState(false)
-  const [editForm, setEditForm] = useState({ submitted_full_name: "", submitted_address: "", submitted_dl_number: "" })
+  const [editForm, setEditForm] = useState({
+    submitted_full_name: "",
+    submitted_address: "",
+    submitted_dl_number: "",
+    mailing_address: "",
+    received_via: "",
+  })
 
   const { tenant } = useTenantConfig()
   const verificationMethods = tenant?.verification_methods || []
+  const rejectionReasons = optionList(tenant?.application_rejection_reasons)
+  const cureReasons = optionList(tenant?.application_cure_reasons)
+  const receivedViaOptions = optionList(tenant?.received_via_options)
   const [checklist, setChecklist] = useState({})
+
+  useEffect(() => {
+    if (rejectionReasons.length && !rejectReason) setRejectReason(rejectionReasons[0].value)
+    if (cureReasons.length && !cureReason) setCureReason(cureReasons[0].value)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenant])
 
   const load = useCallback(() => {
     setLoading(true)
@@ -73,11 +89,15 @@ export default function ApplicationDetail() {
           submitted_full_name: res.data.submitted_full_name,
           submitted_address: res.data.submitted_address,
           submitted_dl_number: res.data.submitted_dl_number || "",
+          mailing_address: res.data.mailing_address || "",
+          received_via: res.data.received_via || "",
         })
         setReapplyForm({
           submitted_full_name: res.data.submitted_full_name,
           submitted_address: res.data.submitted_address,
           submitted_dl_number: res.data.submitted_dl_number || "",
+          mailing_address: res.data.mailing_address || "",
+          received_via: res.data.received_via || "",
         })
       })
       .catch(() => setError("Could not load this application."))
@@ -90,6 +110,7 @@ export default function ApplicationDetail() {
   const signatureUrl = useAuthedObjectUrl(
     application?.voter?.has_signature ? `/voters/${application.voter.id}/signature` : null
   )
+  const requestSignatureUrl = useAuthedObjectUrl(application?.has_signature ? `/applications/${id}/signature` : null)
 
   const runAction = async (fn, successMessage) => {
     setActionError("")
@@ -113,8 +134,11 @@ export default function ApplicationDetail() {
   const handleApprove = () =>
     runAction(
       () => api.post(`/applications/${id}/approve`, { verification_checklist: checklist }),
-      "Application approved — ABS Sent"
+      "Application approved — pending ABS mail-out"
     )
+
+  const handleMarkAbsSent = () =>
+    runAction(() => api.post(`/applications/${id}/mark-abs-sent`), "Marked as ABS Sent")
 
   const handleReject = () =>
     runAction(async () => {
@@ -210,6 +234,21 @@ export default function ApplicationDetail() {
                 <EditField label="Full name" value={editForm.submitted_full_name} onChange={(v) => setEditForm((f) => ({ ...f, submitted_full_name: v }))} />
                 <EditField label="Address" value={editForm.submitted_address} onChange={(v) => setEditForm((f) => ({ ...f, submitted_address: v }))} />
                 <EditField label="DL number" value={editForm.submitted_dl_number} onChange={(v) => setEditForm((f) => ({ ...f, submitted_dl_number: v }))} />
+                <EditField label="Mailing address (if different)" value={editForm.mailing_address} onChange={(v) => setEditForm((f) => ({ ...f, mailing_address: v }))} />
+                <div>
+                  <label className="block text-xs font-medium mb-1" style={{ color: "var(--color-muted)" }}>Received via</label>
+                  <select
+                    value={editForm.received_via}
+                    onChange={(e) => setEditForm((f) => ({ ...f, received_via: e.target.value }))}
+                    className="w-full rounded-lg border px-3 py-2 text-sm outline-none"
+                    style={{ borderColor: "var(--color-border)" }}
+                  >
+                    <option value="">—</option>
+                    {receivedViaOptions.map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                </div>
                 <div className="flex gap-2">
                   <button onClick={handleSaveEdit} disabled={busy} className="cursor-pointer rounded-lg px-3 py-2 text-sm font-medium" style={{ backgroundColor: "var(--color-primary)", color: "var(--color-on-primary)" }}>
                     Save
@@ -224,6 +263,8 @@ export default function ApplicationDetail() {
                 <DetailRow label="Full name" value={application.submitted_full_name} />
                 <DetailRow label="Address" value={application.submitted_address} />
                 <DetailRow label="DL number" value={application.submitted_dl_number || "—"} />
+                <DetailRow label="Mailing address" value={application.mailing_address || "—"} />
+                <DetailRow label="Received via" value={application.received_via ? application.received_via.replaceAll("_", " ") : "—"} />
               </dl>
             )}
 
@@ -236,6 +277,19 @@ export default function ApplicationDetail() {
                   <img src={scanImageUrl} alt="Scanned application" className="rounded-lg border max-h-64 w-full object-contain" style={{ borderColor: "var(--color-border)" }} />
                 ) : (
                   <div className="h-32 rounded-lg animate-pulse" style={{ backgroundColor: "var(--color-muted-bg)" }} />
+                )}
+              </div>
+            )}
+
+            {application.has_signature && (
+              <div className="mt-4">
+                <p className="text-xs font-medium mb-1.5" style={{ color: "var(--color-muted)" }}>
+                  Request Form Signature
+                </p>
+                {requestSignatureUrl ? (
+                  <img src={requestSignatureUrl} alt="Request form signature" className="rounded-lg border bg-white max-h-32" style={{ borderColor: "var(--color-border)" }} />
+                ) : (
+                  <div className="h-24 w-64 rounded-lg animate-pulse" style={{ backgroundColor: "var(--color-muted-bg)" }} />
                 )}
               </div>
             )}
@@ -318,7 +372,7 @@ export default function ApplicationDetail() {
               className="cursor-pointer rounded-lg px-4 py-2.5 text-sm font-medium disabled:opacity-50"
               style={{ backgroundColor: "var(--color-primary)", color: "var(--color-on-primary)" }}
             >
-              Approve → ABS Sent
+              Approve
             </button>
             <button
               onClick={() => setShowCure(true)}
@@ -339,6 +393,25 @@ export default function ApplicationDetail() {
           </section>
         )}
 
+        {application.status === "approved" && (
+          <section
+            className="rounded-xl border p-5 mb-6 flex flex-wrap items-center justify-between gap-3"
+            style={{ backgroundColor: "var(--color-surface)", borderColor: "var(--color-border)" }}
+          >
+            <p className="text-sm" style={{ color: "var(--color-muted)" }}>
+              Approved and awaiting ballot packet mail-out.
+            </p>
+            <button
+              onClick={handleMarkAbsSent}
+              disabled={busy}
+              className="cursor-pointer rounded-lg px-4 py-2.5 text-sm font-medium disabled:opacity-50"
+              style={{ backgroundColor: "var(--color-primary)", color: "var(--color-on-primary)" }}
+            >
+              Mark ABS Sent
+            </button>
+          </section>
+        )}
+
         {application.status === "cure" && (
           <section
             className="rounded-xl border p-5 mb-6"
@@ -348,7 +421,7 @@ export default function ApplicationDetail() {
               <div>
                 <h2 className="text-base font-semibold">Cure in progress</h2>
                 <p className="text-sm" style={{ color: "var(--color-muted)" }}>
-                  Reason: {CURE_REASONS.find((r) => r.value === application.cure_reason)?.label} · Notified via{" "}
+                  Reason: {application.cure_reason?.replaceAll("_", " ")} · Notified via{" "}
                   {application.cure_notified_via}
                 </p>
               </div>
@@ -389,7 +462,7 @@ export default function ApplicationDetail() {
             className="w-full rounded-lg border px-3 py-2 text-sm mb-4"
             style={{ borderColor: "var(--color-border)" }}
           >
-            {REJECTION_REASONS.map((r) => (
+            {rejectionReasons.map((r) => (
               <option key={r.value} value={r.value}>
                 {r.label}
               </option>
@@ -408,7 +481,7 @@ export default function ApplicationDetail() {
             className="w-full rounded-lg border px-3 py-2 text-sm mb-4"
             style={{ borderColor: "var(--color-border)" }}
           >
-            {CURE_REASONS.map((r) => (
+            {cureReasons.map((r) => (
               <option key={r.value} value={r.value}>
                 {r.label}
               </option>
@@ -441,6 +514,7 @@ export default function ApplicationDetail() {
             <EditField label="Full name" value={reapplyForm.submitted_full_name} onChange={(v) => setReapplyForm((f) => ({ ...f, submitted_full_name: v }))} />
             <EditField label="Address" value={reapplyForm.submitted_address} onChange={(v) => setReapplyForm((f) => ({ ...f, submitted_address: v }))} />
             <EditField label="DL number" value={reapplyForm.submitted_dl_number} onChange={(v) => setReapplyForm((f) => ({ ...f, submitted_dl_number: v }))} />
+            <EditField label="Mailing address (if different)" value={reapplyForm.mailing_address} onChange={(v) => setReapplyForm((f) => ({ ...f, mailing_address: v }))} />
           </div>
           <ModalActions onCancel={() => setShowReapply(false)} onConfirm={handleReapply} confirmLabel="Submit Reapplication" busy={busy} />
         </Modal>

@@ -73,6 +73,27 @@ def get_scan_image(
     return FileResponse(path)
 
 
+@router.post("/{application_id}/signature", response_model=ApplicationOut)
+async def upload_application_signature(
+    application_id: int,
+    file: UploadFile = File(...),
+    user: User = Depends(require_tenant_user),
+    service: ApplicationService = Depends(get_application_service),
+):
+    content = await file.read()
+    return application_to_out(
+        service.set_signature(tenant_scope(user), application_id, file.filename or "signature.png", content)
+    )
+
+
+@router.get("/{application_id}/signature")
+def get_application_signature(
+    application_id: int, user: User = Depends(require_tenant_user), service: ApplicationService = Depends(get_application_service)
+):
+    path = service.get_signature_image_path(tenant_scope(user), application_id)
+    return FileResponse(path)
+
+
 @router.patch("/{application_id}", response_model=ApplicationOut)
 def update_application(
     application_id: int,
@@ -103,6 +124,15 @@ def approve_application(
     return application_to_out(
         service.approve(tenant_scope(user), user, application_id, payload.verification_checklist)
     )
+
+
+@router.post("/{application_id}/mark-abs-sent", response_model=ApplicationOut)
+def mark_abs_sent(
+    application_id: int,
+    user: User = Depends(require_tenant_user),
+    service: ApplicationService = Depends(get_application_service),
+):
+    return application_to_out(service.mark_abs_sent(tenant_scope(user), user, application_id))
 
 
 @router.post("/{application_id}/reject", response_model=ApplicationOut)

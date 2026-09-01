@@ -13,7 +13,14 @@ export default function NewApplication() {
   const fileInputRef = useRef(null)
   const { tenant, loading: loadingTenant } = useTenantConfig()
   const processingMode = loadingTenant ? null : tenant?.processing_mode || "manual"
-  const [form, setForm] = useState({ submitted_full_name: "", submitted_address: "", submitted_dl_number: "" })
+  const receivedViaOptions = tenant?.received_via_options || []
+  const [form, setForm] = useState({
+    submitted_full_name: "",
+    submitted_address: "",
+    submitted_dl_number: "",
+    mailing_address: "",
+    received_via: "",
+  })
   const [voter, setVoter] = useState(null)
   const [file, setFile] = useState(null)
   const [submitting, setSubmitting] = useState(false)
@@ -127,6 +134,27 @@ export default function NewApplication() {
             <Field label="Full name (as submitted)" value={form.submitted_full_name} onChange={update("submitted_full_name")} required />
             <Field label="Address (as submitted)" value={form.submitted_address} onChange={update("submitted_address")} required />
             <Field label="Driver's License number (optional)" value={form.submitted_dl_number} onChange={update("submitted_dl_number")} />
+            <Field label="Mailing address (if different, optional)" value={form.mailing_address} onChange={update("mailing_address")} />
+
+            <div>
+              <label htmlFor="received-via" className="block text-sm font-medium mb-1.5">
+                Received via (optional)
+              </label>
+              <select
+                id="received-via"
+                value={form.received_via}
+                onChange={update("received_via")}
+                className="w-full rounded-lg border px-3.5 py-2.5 text-base outline-none"
+                style={{ borderColor: "var(--color-border)" }}
+              >
+                <option value="">—</option>
+                {receivedViaOptions.map((o) => (
+                  <option key={o} value={o}>
+                    {o.replaceAll("_", " ")}
+                  </option>
+                ))}
+              </select>
+            </div>
 
             <div>
               <label className="block text-sm font-medium mb-1.5">Link to voter record (optional now, required to approve)</label>

@@ -5,10 +5,7 @@ from pydantic import BaseModel, EmailStr, Field
 from app.models.models import (
     ApplicationStatus,
     CureNotificationMethod,
-    CureReason,
     ProcessingMode,
-    RejectionReason,
-    ReturnedBallotRejectionReason,
     ReturnedBallotStatus,
     UserRole,
     VerificationMethod,
@@ -64,6 +61,35 @@ class TenantConfigUpdate(BaseModel):
     jurisdiction_state: str | None = Field(default=None, max_length=2)
     cure_notification_method: CureNotificationMethod | None = None
     verification_methods: list[VerificationMethod] | None = None
+
+
+class ReasonListsUpdate(BaseModel):
+    application_rejection_reasons: list[str] | None = None
+    application_cure_reasons: list[str] | None = None
+    ballot_rejection_reasons: list[str] | None = None
+    received_via_options: list[str] | None = None
+
+
+class BrandingUpdate(BaseModel):
+    display_name: str | None = None
+    currency: str | None = Field(default=None, min_length=3, max_length=3)
+
+
+class TenantUserOut(BaseModel):
+    id: int
+    email: EmailStr
+    role: UserRole
+    is_active: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class TenantUserCreate(BaseModel):
+    email: EmailStr
+    password: str
+    role: UserRole = UserRole.tenant_user
 
 
 class RateLimitUpdate(BaseModel):
@@ -182,6 +208,8 @@ class ApplicationCreate(BaseModel):
     submitted_full_name: str
     submitted_address: str
     submitted_dl_number: str | None = None
+    mailing_address: str | None = None
+    received_via: str | None = None
     voter_id: int | None = None
 
 
@@ -220,13 +248,16 @@ class ApplicationOut(BaseModel):
     submitted_full_name: str
     submitted_address: str
     submitted_dl_number: str | None
+    mailing_address: str | None
+    received_via: str | None
     voter_id: int | None
     voter: VoterOut | None = None
     parent_application_id: int | None
     is_reapproval: bool
     has_scan_image: bool
-    rejection_reason: RejectionReason | None
-    cure_reason: CureReason | None
+    has_signature: bool
+    rejection_reason: str | None
+    cure_reason: str | None
     cure_notified_via: str | None
     processed_at: datetime | None
     created_at: datetime
@@ -241,6 +272,8 @@ class ApplicationUpdate(BaseModel):
     submitted_full_name: str | None = None
     submitted_address: str | None = None
     submitted_dl_number: str | None = None
+    mailing_address: str | None = None
+    received_via: str | None = None
 
 
 class MatchVoterRequest(BaseModel):
@@ -248,11 +281,11 @@ class MatchVoterRequest(BaseModel):
 
 
 class RejectRequest(BaseModel):
-    reason: RejectionReason
+    reason: str
 
 
 class CureRequest(BaseModel):
-    reason: CureReason
+    reason: str
     notify_via: CureNotificationMethod = CureNotificationMethod.email
 
 
@@ -278,6 +311,7 @@ class OriginalApplicationSummary(BaseModel):
     submitted_full_name: str
     submitted_address: str
     submitted_dl_number: str | None
+    has_signature: bool
     processed_at: datetime | None
 
     class Config:
@@ -326,7 +360,7 @@ class ReturnedBallotOut(BaseModel):
     absentee_application_id: int | None
     original_application: OriginalApplicationSummary | None = None
     has_envelope_scan: bool
-    rejection_reason: ReturnedBallotRejectionReason | None
+    rejection_reason: str | None
     processed_at: datetime | None
     created_at: datetime
     updated_at: datetime
@@ -337,17 +371,24 @@ class ReturnedBallotOut(BaseModel):
 
 
 class ReturnedBallotRejectRequest(BaseModel):
-    reason: ReturnedBallotRejectionReason
+    reason: str
 
 
 class MyTenantSummary(BaseModel):
     id: int
     name: str
     slug: str
+    display_name: str | None
+    has_logo: bool
+    currency: str
     requests_per_minute: int | None
     processing_mode: str
     jurisdiction_state: str | None
     verification_methods: list[str]
+    application_rejection_reasons: list[str]
+    application_cure_reasons: list[str]
+    ballot_rejection_reasons: list[str]
+    received_via_options: list[str]
 
 
 class MeResponse(BaseModel):

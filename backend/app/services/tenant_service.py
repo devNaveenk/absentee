@@ -3,6 +3,10 @@ from sqlalchemy.orm import Session
 from app.core.exceptions import ConflictError, NotFoundError
 from app.core.security import hash_password
 from app.models.models import (
+    DEFAULT_APPLICATION_CURE_REASONS,
+    DEFAULT_APPLICATION_REJECTION_REASONS,
+    DEFAULT_BALLOT_REJECTION_REASONS,
+    DEFAULT_RECEIVED_VIA_OPTIONS,
     DEFAULT_VERIFICATION_METHODS_GA,
     DEFAULT_VERIFICATION_METHODS_OTHER,
     RateLimitConfig,
@@ -46,6 +50,10 @@ class TenantService:
                     if payload.verification_methods
                     else default_verification_methods(payload.jurisdiction_state)
                 ),
+                application_rejection_reasons=list(DEFAULT_APPLICATION_REJECTION_REASONS),
+                application_cure_reasons=list(DEFAULT_APPLICATION_CURE_REASONS),
+                ballot_rejection_reasons=list(DEFAULT_BALLOT_REJECTION_REASONS),
+                received_via_options=list(DEFAULT_RECEIVED_VIA_OPTIONS),
             )
         )
         self.db.add(

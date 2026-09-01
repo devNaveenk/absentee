@@ -13,6 +13,7 @@ import ReturnedBallotDetail from "./pages/ReturnedBallotDetail"
 import ReturnedBallotsQueue from "./pages/ReturnedBallotsQueue"
 import SuperadminDashboard from "./pages/SuperadminDashboard"
 import TenantDashboard from "./pages/TenantDashboard"
+import TenantSettings from "./pages/TenantSettings"
 import VotersPage from "./pages/VotersPage"
 
 const TENANT_ROLES = ["tenant_admin", "tenant_user"]
@@ -87,6 +88,14 @@ export default function App() {
             element={
               <ProtectedRoute allowRoles={TENANT_ROLES}>
                 <VotersPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute allowRoles={["tenant_admin"]}>
+                <TenantSettings />
               </ProtectedRoute>
             }
           />

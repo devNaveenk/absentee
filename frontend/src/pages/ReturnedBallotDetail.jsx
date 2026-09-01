@@ -10,14 +10,6 @@ import { useAuthedObjectUrl } from "../hooks/useAuthedObjectUrl"
 import { useTenantConfig } from "../hooks/useTenantConfig"
 import { api } from "../lib/api"
 
-const REJECTION_REASONS = [
-  { value: "already_voted_in_person", label: "Voter has already voted in person" },
-  { value: "moved_outside_jurisdiction", label: "Voter has moved outside the jurisdiction" },
-  { value: "deceased", label: "Voter is deceased" },
-  { value: "credential_mismatch", label: "Driver's License / credential mismatch" },
-  { value: "signature_mismatch", label: "Signature mismatch" },
-]
-
 const STATUS_LABELS = {
   received: "Pending Verification",
   verified: "Verified — Final Bin",
@@ -34,11 +26,17 @@ export default function ReturnedBallotDetail() {
   const [busy, setBusy] = useState(false)
 
   const [showReject, setShowReject] = useState(false)
-  const [rejectReason, setRejectReason] = useState(REJECTION_REASONS[0].value)
+  const [rejectReason, setRejectReason] = useState("")
 
   const { tenant } = useTenantConfig()
   const verificationMethods = tenant?.verification_methods || []
+  const rejectionReasons = (tenant?.ballot_rejection_reasons || []).map((v) => ({ value: v, label: v.replaceAll("_", " ") }))
   const [checklist, setChecklist] = useState({})
+
+  useEffect(() => {
+    if (rejectionReasons.length && !rejectReason) setRejectReason(rejectionReasons[0].value)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenant])
 
   const load = useCallback(() => {
     setLoading(true)
@@ -54,6 +52,9 @@ export default function ReturnedBallotDetail() {
 
   const envelopeImageUrl = useAuthedObjectUrl(ballot?.has_envelope_scan ? `/returned-ballots/${id}/envelope-image` : null)
   const signatureUrl = useAuthedObjectUrl(ballot?.voter?.has_signature ? `/voters/${ballot.voter.id}/signature` : null)
+  const requestSignatureUrl = useAuthedObjectUrl(
+    ballot?.original_application?.has_signature ? `/applications/${ballot.original_application.id}/signature` : null
+  )
 
   const runAction = async (fn, successMessage) => {
     setActionError("")
@@ -216,6 +217,17 @@ export default function ReturnedBallotDetail() {
           </section>
         </div>
 
+        {(ballot.original_application?.has_signature || ballot.has_envelope_scan || ballot.voter?.has_signature) && (
+          <section className="rounded-xl border p-5 mb-6" style={{ backgroundColor: "var(--color-surface)", borderColor: "var(--color-border)" }}>
+            <h2 className="text-base font-semibold mb-4">Signature Comparison</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <SignaturePanel label="Request Form Signature" url={requestSignatureUrl} present={ballot.original_application?.has_signature} />
+              <SignaturePanel label="Envelope Signature" url={envelopeImageUrl} present={ballot.has_envelope_scan} />
+              <SignaturePanel label="Voter Profile Signature" url={signatureUrl} present={ballot.voter?.has_signature} />
+            </div>
+          </section>
+        )}
+
         {canDecide && (
           <VerificationChecklist
             methods={verificationMethods}
@@ -259,7 +271,7 @@ export default function ReturnedBallotDetail() {
           <section className="rounded-xl border p-5 mb-6" style={{ backgroundColor: "var(--color-surface)", borderColor: "var(--color-border)" }}>
             <p className="text-sm">
               <span className="font-medium">Rejected:</span>{" "}
-              {REJECTION_REASONS.find((r) => r.value === ballot.rejection_reason)?.label}
+              {ballot.rejection_reason?.replaceAll("_", " ")}
             </p>
           </section>
         )}
@@ -289,7 +301,7 @@ export default function ReturnedBallotDetail() {
             className="w-full rounded-lg border px-3 py-2 text-sm mb-4"
             style={{ borderColor: "var(--color-border)" }}
           >
-            {REJECTION_REASONS.map((r) => (
+            {rejectionReasons.map((r) => (
               <option key={r.value} value={r.value}>
                 {r.label}
               </option>
@@ -299,5 +311,27 @@ export default function ReturnedBallotDetail() {
         </Modal>
       )}
     </AppShell>
+  )
+}
+
+function SignaturePanel({ label, url, present }) {
+  return (
+    <div>
+      <p className="text-xs font-medium mb-1.5" style={{ color: "var(--color-muted)" }}>
+        {label}
+      </p>
+      {!present ? (
+        <div
+          className="h-24 rounded-lg border flex items-center justify-center text-xs"
+          style={{ borderColor: "var(--color-border)", color: "var(--color-muted)" }}
+        >
+          Not on file
+        </div>
+      ) : url ? (
+        <img src={url} alt={label} className="rounded-lg border bg-white max-h-24 w-full object-contain" style={{ borderColor: "var(--color-border)" }} />
+      ) : (
+        <div className="h-24 rounded-lg animate-pulse" style={{ backgroundColor: "var(--color-muted-bg)" }} />
+      )}
+    </div>
   )
 }

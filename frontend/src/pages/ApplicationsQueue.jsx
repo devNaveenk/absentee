@@ -5,7 +5,8 @@ import { api } from "../lib/api"
 
 const PROCESSED_STATUSES = [
   { value: "", label: "All processed" },
-  { value: "abs_sent", label: "Approved (ABS Sent)" },
+  { value: "approved", label: "Approved (pending ABS)" },
+  { value: "abs_sent", label: "ABS Sent" },
   { value: "rejected", label: "Rejected" },
   { value: "cure", label: "Cure" },
   { value: "reapproved", label: "Reapproved" },
@@ -13,6 +14,7 @@ const PROCESSED_STATUSES = [
 
 const STATUS_LABELS = {
   unprocessed: "Unprocessed",
+  approved: "Approved",
   abs_sent: "ABS Sent",
   rejected: "Rejected",
   cure: "Cure",
@@ -21,6 +23,7 @@ const STATUS_LABELS = {
 
 const STATUS_TONE = {
   unprocessed: { bg: "var(--color-muted-bg)", fg: "var(--color-muted)" },
+  approved: { bg: "var(--color-info-bg)", fg: "var(--color-info)" },
   abs_sent: { bg: "var(--color-success-bg)", fg: "var(--color-success)" },
   rejected: { bg: "var(--color-destructive-bg)", fg: "var(--color-destructive)" },
   cure: { bg: "var(--color-warning-bg)", fg: "var(--color-warning)" },
