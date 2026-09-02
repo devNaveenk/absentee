@@ -63,6 +63,10 @@ class TenantConfigUpdate(BaseModel):
     verification_methods: list[VerificationMethod] | None = None
 
 
+class ProcessingModeUpdate(BaseModel):
+    processing_mode: ProcessingMode
+
+
 class ReasonListsUpdate(BaseModel):
     application_rejection_reasons: list[str] | None = None
     application_cure_reasons: list[str] | None = None

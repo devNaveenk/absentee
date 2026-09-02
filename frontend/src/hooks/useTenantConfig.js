@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { api } from "../lib/api"
 
 /** Fetches the current tenant's processing mode + verification checklist config.
@@ -7,13 +7,18 @@ export function useTenantConfig() {
   const [tenant, setTenant] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    api
+  const refetch = useCallback(() => {
+    setLoading(true)
+    return api
       .get("/tenant/me")
       .then((res) => setTenant(res.data?.tenant || null))
       .catch(() => setTenant(null))
       .finally(() => setLoading(false))
   }, [])
 
-  return { tenant, loading }
+  useEffect(() => {
+    refetch()
+  }, [refetch])
+
+  return { tenant, loading, refetch }
 }

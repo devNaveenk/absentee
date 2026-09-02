@@ -2,6 +2,7 @@ import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import AppShell from "../components/AppShell"
 import BackButton from "../components/BackButton"
+import FileDropzone from "../components/FileDropzone"
 import VoterSearchInput from "../components/VoterSearchInput"
 import { useNotify } from "../context/NotificationContext"
 import { useTenantConfig } from "../hooks/useTenantConfig"
@@ -87,25 +88,17 @@ export default function NewReturnedBallot() {
             className="rounded-xl border p-6 space-y-4"
             style={{ backgroundColor: "var(--color-surface)", borderColor: "var(--color-border)" }}
           >
-            <div>
-              <label htmlFor="envelope-file" className="block text-sm font-medium mb-1.5">
-                Scanned envelope / flap image
-              </label>
-              <input
-                id="envelope-file"
-                type="file"
-                accept="image/*,.pdf"
-                onChange={(e) => setFile(e.target.files?.[0] || null)}
-                className="w-full text-sm"
-              />
-              <p className="text-xs mt-1.5" style={{ color: "var(--color-muted)" }}>
-                OCR only accelerates identification — final acceptance always requires manual verification against
-                the Unified Voter Profile on the next screen.
-              </p>
-            </div>
+            <FileDropzone
+              id="envelope-file"
+              label="Scanned envelope / flap image"
+              file={file}
+              onChange={setFile}
+              accept="image/*,.pdf"
+              helpText="OCR only accelerates identification — final acceptance always requires manual verification against the Unified Voter Profile on the next screen."
+            />
             <button
               type="submit"
-              disabled={submitting}
+              disabled={submitting || !file}
               className="cursor-pointer w-full rounded-lg py-2.5 text-base font-medium disabled:opacity-60"
               style={{ backgroundColor: "var(--color-primary)", color: "var(--color-on-primary)" }}
             >

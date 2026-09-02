@@ -15,7 +15,8 @@ const REASON_LIST_FIELDS = [
 
 export default function TenantSettings() {
   const notify = useNotify()
-  const { tenant, loading } = useTenantConfig()
+  const { tenant, loading, refetch } = useTenantConfig()
+  const [savingMode, setSavingMode] = useState(false)
   const [reasonLists, setReasonLists] = useState({})
   const [savingReasons, setSavingReasons] = useState(false)
 
@@ -58,6 +59,20 @@ export default function TenantSettings() {
   const removeReasonItem = (key, idx) =>
     setReasonLists((r) => ({ ...r, [key]: r[key].filter((_, i) => i !== idx) }))
 
+  const saveProcessingMode = async (mode) => {
+    if (mode === tenant?.processing_mode) return
+    setSavingMode(true)
+    try {
+      await api.patch("/tenant/settings/processing-mode", { processing_mode: mode })
+      notify(`Switched to ${mode === "scan" ? "Scan" : "Manual"} Mode`, "success")
+      await refetch()
+    } catch (err) {
+      notify(err.response?.data?.detail || "Could not update processing mode.", "error")
+    } finally {
+      setSavingMode(false)
+    }
+  }
+
   const saveReasonLists = async () => {
     setSavingReasons(true)
     try {
@@ -66,6 +81,7 @@ export default function TenantSettings() {
       )
       await api.patch("/tenant/settings/reasons", payload)
       notify("Reason lists updated", "success")
+      await refetch()
     } catch (err) {
       notify(err.response?.data?.detail || "Could not update reason lists.", "error")
     } finally {
@@ -78,6 +94,7 @@ export default function TenantSettings() {
     try {
       await api.patch("/tenant/settings/branding", branding)
       notify("Branding updated", "success")
+      await refetch()
     } catch (err) {
       notify(err.response?.data?.detail || "Could not update branding.", "error")
     } finally {
@@ -96,6 +113,7 @@ export default function TenantSettings() {
       })
       notify("Logo uploaded", "success")
       setLogoFile(null)
+      await refetch()
     } catch (err) {
       notify(err.response?.data?.detail || "Could not upload logo.", "error")
     } finally {
@@ -146,8 +164,37 @@ export default function TenantSettings() {
           Settings
         </h1>
         <p className="text-sm mb-6" style={{ color: "var(--color-muted)" }}>
-          Configure reason lists, branding, and your team.
+          Configure processing mode, reason lists, branding, and your team.
         </p>
+
+        {/* Processing Mode */}
+        <section className="rounded-xl border p-5 mb-6" style={{ backgroundColor: "var(--color-surface)", borderColor: "var(--color-border)" }}>
+          <h2 className="text-base font-semibold mb-1">Processing Mode</h2>
+          <p className="text-sm mb-4" style={{ color: "var(--color-muted)" }}>
+            Manual Mode uses direct data-entry forms. Scan Mode uploads an image/PDF and extracts fields via OCR.
+          </p>
+          <div className="flex gap-3">
+            {[
+              { value: "manual", label: "Manual Mode" },
+              { value: "scan", label: "Scan Mode" },
+            ].map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                disabled={savingMode}
+                onClick={() => saveProcessingMode(opt.value)}
+                className="cursor-pointer flex-1 rounded-lg px-4 py-2.5 text-sm font-medium border disabled:opacity-60"
+                style={
+                  tenant?.processing_mode === opt.value
+                    ? { backgroundColor: "var(--color-primary)", color: "var(--color-on-primary)", borderColor: "var(--color-primary)" }
+                    : { color: "var(--color-foreground)", borderColor: "var(--color-border)" }
+                }
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </section>
 
         {/* Reason Lists */}
         <section className="rounded-xl border p-5 mb-6" style={{ backgroundColor: "var(--color-surface)", borderColor: "var(--color-border)" }}>

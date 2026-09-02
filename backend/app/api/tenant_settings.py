@@ -9,6 +9,7 @@ from app.schemas.mappers import tenant_to_my_summary
 from app.schemas.schemas import (
     BrandingUpdate,
     MyTenantSummary,
+    ProcessingModeUpdate,
     ReasonListsUpdate,
     TenantUserCreate,
     TenantUserOut,
@@ -20,6 +21,15 @@ router = APIRouter(prefix="/api/tenant/settings", tags=["tenant-settings"], depe
 
 def get_service(db: Session = Depends(get_db)) -> TenantSettingsService:
     return TenantSettingsService(db)
+
+
+@router.patch("/processing-mode", response_model=MyTenantSummary)
+def update_processing_mode(
+    payload: ProcessingModeUpdate,
+    user: User = Depends(require_tenant_admin),
+    service: TenantSettingsService = Depends(get_service),
+):
+    return tenant_to_my_summary(service.update_processing_mode(tenant_scope(user), payload))
 
 
 @router.patch("/reasons", response_model=MyTenantSummary)

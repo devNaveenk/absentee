@@ -35,6 +35,13 @@ class TenantSettingsService:
             raise NotFoundError("Tenant not found")
         return tenant
 
+    def update_processing_mode(self, tenant_id: int, payload) -> Tenant:
+        tenant = self._get_or_404(tenant_id)
+        tenant.processing_mode = payload.processing_mode
+        self.tenants.commit()
+        self.tenants.refresh(tenant)
+        return tenant
+
     def update_reason_lists(self, tenant_id: int, payload) -> Tenant:
         tenant = self._get_or_404(tenant_id)
         if payload.application_rejection_reasons is not None:
