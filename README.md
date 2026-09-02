@@ -30,7 +30,6 @@ Per the BallotDA PRD:
 ```
 backend/     FastAPI app, SQLAlchemy models, Alembic migrations, uploads/ (local file storage)
 frontend/    React + Vite + Tailwind (v4) app
-docker-compose.yml   optional local MySQL for development
 ```
 
 ## Backend architecture
@@ -75,7 +74,7 @@ pip install -r requirements.txt        # add -r requirements-dev.txt too if you 
 cp .env.example .env                   # edit JWT_SECRET / DATABASE_URL as needed
 ```
 
-Point `DATABASE_URL` in `.env` at a MySQL instance (Docker via `docker compose up -d`, or a native/local install). Then:
+Point `DATABASE_URL` in `.env` at a local MySQL instance (a native/Homebrew install works fine). Then:
 
 ```bash
 alembic upgrade head
