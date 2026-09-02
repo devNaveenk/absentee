@@ -1,21 +1,12 @@
-import { useCallback, useEffect, useState } from "react"
-import { useNavigate, useParams } from "react-router-dom"
 import AppShell from "../components/AppShell"
-import DetailRow from "../components/DetailRow"
-import Modal, { ModalActions } from "../components/Modal"
-import VerificationChecklist from "../components/VerificationChecklist"
-import VoterSearchInput from "../components/VoterSearchInput"
-import { useNotify } from "../context/NotificationContext"
-import { useAuthedObjectUrl } from "../hooks/useAuthedObjectUrl"
-import { useTenantConfig } from "../hooks/useTenantConfig"
-import { api } from "../lib/api"
-
-const NOTIFY_OPTIONS = [
-  { value: "email", label: "Email" },
-  { value: "sms", label: "SMS" },
-  { value: "mail", label: "Physical mail" },
-  { value: "both", label: "Email + physical mail" },
-]
+import ApplicationStatusActions from "../components/applications/ApplicationStatusActions"
+import CureApplicationModal from "../components/applications/CureApplicationModal"
+import ReapplyModal from "../components/applications/ReapplyModal"
+import RejectApplicationModal from "../components/applications/RejectApplicationModal"
+import SubmittedApplicationCard from "../components/applications/SubmittedApplicationCard"
+import VoterProfilePanel from "../components/applications/VoterProfilePanel"
+import AuditHistoryList from "../components/AuditHistoryList"
+import { useApplicationDetail } from "../hooks/useApplicationDetail"
 
 const STATUS_LABELS = {
   unprocessed: "Unprocessed",
@@ -26,146 +17,10 @@ const STATUS_LABELS = {
   reapproved: "Reapproved",
 }
 
-function optionList(values) {
-  return (values || []).map((v) => ({ value: v, label: v.replaceAll("_", " ") }))
-}
-
 export default function ApplicationDetail() {
-  const { id } = useParams()
-  const navigate = useNavigate()
-  const notify = useNotify()
-  const [application, setApplication] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState("")
-  const [actionError, setActionError] = useState("")
-  const [busy, setBusy] = useState(false)
+  const d = useApplicationDetail()
 
-  const [showReject, setShowReject] = useState(false)
-  const [rejectReason, setRejectReason] = useState("")
-
-  const [showCure, setShowCure] = useState(false)
-  const [cureReason, setCureReason] = useState("")
-  const [notifyVia, setNotifyVia] = useState("email")
-
-  const [showReapply, setShowReapply] = useState(false)
-  const [reapplyForm, setReapplyForm] = useState({
-    submitted_full_name: "",
-    submitted_address: "",
-    submitted_dl_number: "",
-    mailing_address: "",
-    received_via: "",
-  })
-
-  const [editing, setEditing] = useState(false)
-  const [editForm, setEditForm] = useState({
-    submitted_full_name: "",
-    submitted_address: "",
-    submitted_dl_number: "",
-    mailing_address: "",
-    received_via: "",
-  })
-
-  const { tenant } = useTenantConfig()
-  const verificationMethods = tenant?.verification_methods || []
-  const rejectionReasons = optionList(tenant?.application_rejection_reasons)
-  const cureReasons = optionList(tenant?.application_cure_reasons)
-  const receivedViaOptions = optionList(tenant?.received_via_options)
-  const [checklist, setChecklist] = useState({})
-
-  useEffect(() => {
-    if (rejectionReasons.length && !rejectReason) setRejectReason(rejectionReasons[0].value)
-    if (cureReasons.length && !cureReason) setCureReason(cureReasons[0].value)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tenant])
-
-  const load = useCallback(() => {
-    setLoading(true)
-    setError("")
-    api
-      .get(`/applications/${id}`)
-      .then((res) => {
-        setApplication(res.data)
-        setEditForm({
-          submitted_full_name: res.data.submitted_full_name,
-          submitted_address: res.data.submitted_address,
-          submitted_dl_number: res.data.submitted_dl_number || "",
-          mailing_address: res.data.mailing_address || "",
-          received_via: res.data.received_via || "",
-        })
-        setReapplyForm({
-          submitted_full_name: res.data.submitted_full_name,
-          submitted_address: res.data.submitted_address,
-          submitted_dl_number: res.data.submitted_dl_number || "",
-          mailing_address: res.data.mailing_address || "",
-          received_via: res.data.received_via || "",
-        })
-      })
-      .catch(() => setError("Could not load this application."))
-      .finally(() => setLoading(false))
-  }, [id])
-
-  useEffect(load, [load])
-
-  const scanImageUrl = useAuthedObjectUrl(application?.has_scan_image ? `/applications/${id}/scan-image` : null)
-  const signatureUrl = useAuthedObjectUrl(
-    application?.voter?.has_signature ? `/voters/${application.voter.id}/signature` : null
-  )
-  const requestSignatureUrl = useAuthedObjectUrl(application?.has_signature ? `/applications/${id}/signature` : null)
-
-  const runAction = async (fn, successMessage) => {
-    setActionError("")
-    setBusy(true)
-    try {
-      await fn()
-      if (successMessage) notify(successMessage, "success")
-      load()
-    } catch (err) {
-      const message = err.response?.data?.detail || "Action failed."
-      setActionError(message)
-      notify(message, "error")
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const handleMatchVoter = (voter) =>
-    runAction(() => api.post(`/applications/${id}/match-voter`, { voter_id: voter.id }), `Matched to ${voter.full_name}`)
-
-  const handleApprove = () =>
-    runAction(
-      () => api.post(`/applications/${id}/approve`, { verification_checklist: checklist }),
-      "Application approved — pending ABS mail-out"
-    )
-
-  const handleMarkAbsSent = () =>
-    runAction(() => api.post(`/applications/${id}/mark-abs-sent`), "Marked as ABS Sent")
-
-  const handleReject = () =>
-    runAction(async () => {
-      await api.post(`/applications/${id}/reject`, { reason: rejectReason })
-      setShowReject(false)
-    }, "Application rejected")
-
-  const handleCure = () =>
-    runAction(async () => {
-      await api.post(`/applications/${id}/cure`, { reason: cureReason, notify_via: notifyVia })
-      setShowCure(false)
-    }, "Moved to Cure — voter will be notified")
-
-  const handleSaveEdit = () =>
-    runAction(async () => {
-      await api.patch(`/applications/${id}`, editForm)
-      setEditing(false)
-    }, "Application fields updated")
-
-  const handleReapply = () =>
-    runAction(async () => {
-      const { data } = await api.post(`/applications/${id}/reapply`, reapplyForm)
-      setShowReapply(false)
-      navigate(`/applications/${data.id}`)
-    }, "Reapplication submitted")
-
-  if (loading) {
+  if (d.loading) {
     return (
       <AppShell role="tenant">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
@@ -175,20 +30,19 @@ export default function ApplicationDetail() {
     )
   }
 
-  if (error || !application) {
+  if (d.error || !d.application) {
     return (
       <AppShell role="tenant">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
           <div role="alert" className="rounded-lg px-4 py-3 text-sm" style={{ backgroundColor: "var(--color-destructive-bg)", color: "var(--color-destructive)" }}>
-            {error || "Application not found."}
+            {d.error || "Application not found."}
           </div>
         </div>
       </AppShell>
     )
   }
 
-  const canDecide = application.status === "unprocessed"
-  const allChecked = verificationMethods.every((m) => checklist[m])
+  const { application } = d
 
   return (
     <AppShell role="tenant">
@@ -211,332 +65,86 @@ export default function ApplicationDetail() {
           </span>
         </div>
 
-        {actionError && (
+        {d.actionError && (
           <div role="alert" className="mb-5 rounded-lg px-4 py-3 text-sm" style={{ backgroundColor: "var(--color-destructive-bg)", color: "var(--color-destructive)" }}>
-            {actionError}
+            {d.actionError}
           </div>
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
-          {/* Submitted application (left) */}
-          <section className="rounded-xl border p-5" style={{ backgroundColor: "var(--color-surface)", borderColor: "var(--color-border)" }}>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-semibold">Submitted Application</h2>
-              {canDecide && !editing && (
-                <button onClick={() => setEditing(true)} className="cursor-pointer text-xs font-medium underline" style={{ color: "var(--color-accent)" }}>
-                  Edit fields
-                </button>
-              )}
-            </div>
-
-            {editing ? (
-              <div className="space-y-3">
-                <EditField label="Full name" value={editForm.submitted_full_name} onChange={(v) => setEditForm((f) => ({ ...f, submitted_full_name: v }))} />
-                <EditField label="Address" value={editForm.submitted_address} onChange={(v) => setEditForm((f) => ({ ...f, submitted_address: v }))} />
-                <EditField label="DL number" value={editForm.submitted_dl_number} onChange={(v) => setEditForm((f) => ({ ...f, submitted_dl_number: v }))} />
-                <EditField label="Mailing address (if different)" value={editForm.mailing_address} onChange={(v) => setEditForm((f) => ({ ...f, mailing_address: v }))} />
-                <div>
-                  <label className="block text-xs font-medium mb-1" style={{ color: "var(--color-muted)" }}>Received via</label>
-                  <select
-                    value={editForm.received_via}
-                    onChange={(e) => setEditForm((f) => ({ ...f, received_via: e.target.value }))}
-                    className="w-full rounded-lg border px-3 py-2 text-sm outline-none"
-                    style={{ borderColor: "var(--color-border)" }}
-                  >
-                    <option value="">—</option>
-                    {receivedViaOptions.map((o) => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={handleSaveEdit} disabled={busy} className="cursor-pointer rounded-lg px-3 py-2 text-sm font-medium" style={{ backgroundColor: "var(--color-primary)", color: "var(--color-on-primary)" }}>
-                    Save
-                  </button>
-                  <button onClick={() => setEditing(false)} className="cursor-pointer text-sm font-medium px-3 py-2" style={{ color: "var(--color-muted)" }}>
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <dl className="space-y-3 text-sm">
-                <DetailRow label="Full name" value={application.submitted_full_name} />
-                <DetailRow label="Address" value={application.submitted_address} />
-                <DetailRow label="DL number" value={application.submitted_dl_number || "—"} />
-                <DetailRow label="Mailing address" value={application.mailing_address || "—"} />
-                <DetailRow label="Received via" value={application.received_via ? application.received_via.replaceAll("_", " ") : "—"} />
-              </dl>
-            )}
-
-            {application.has_scan_image && (
-              <div className="mt-4">
-                <p className="text-xs font-medium mb-1.5" style={{ color: "var(--color-muted)" }}>
-                  Scanned image
-                </p>
-                {scanImageUrl ? (
-                  <img src={scanImageUrl} alt="Scanned application" className="rounded-lg border max-h-64 w-full object-contain" style={{ borderColor: "var(--color-border)" }} />
-                ) : (
-                  <div className="h-32 rounded-lg animate-pulse" style={{ backgroundColor: "var(--color-muted-bg)" }} />
-                )}
-              </div>
-            )}
-
-            {application.has_signature && (
-              <div className="mt-4">
-                <p className="text-xs font-medium mb-1.5" style={{ color: "var(--color-muted)" }}>
-                  Request Form Signature
-                </p>
-                {requestSignatureUrl ? (
-                  <img src={requestSignatureUrl} alt="Request form signature" className="rounded-lg border bg-white max-h-32" style={{ borderColor: "var(--color-border)" }} />
-                ) : (
-                  <div className="h-24 w-64 rounded-lg animate-pulse" style={{ backgroundColor: "var(--color-muted-bg)" }} />
-                )}
-              </div>
-            )}
-          </section>
-
-          {/* Voter profile (right) */}
-          <section className="rounded-xl border p-5" style={{ backgroundColor: "var(--color-surface)", borderColor: "var(--color-border)" }}>
-            <h2 className="text-base font-semibold mb-4">Unified Voter Profile</h2>
-
-            {application.voter ? (
-              <>
-                <dl className="space-y-3 text-sm">
-                  <DetailRow label="Full name" value={application.voter.full_name} required={verificationMethods.includes("full_name")} />
-                  <DetailRow label="Registered address" value={application.voter.registered_address} required={verificationMethods.includes("address")} />
-                  <DetailRow label="DL number" value={application.voter.dl_number || "—"} required={verificationMethods.includes("dl_number")} />
-                  {application.voter.veteran_id && (
-                    <DetailRow label="Veteran ID" value={application.voter.veteran_id} required={verificationMethods.includes("veteran_id")} />
-                  )}
-                  {application.voter.passport_id && (
-                    <DetailRow label="Passport ID" value={application.voter.passport_id} required={verificationMethods.includes("passport_id")} />
-                  )}
-                </dl>
-                {application.voter.has_signature && (
-                  <div className="mt-4">
-                    <p className="text-xs font-medium mb-1.5" style={{ color: "var(--color-muted)" }}>
-                      Signature on file
-                    </p>
-                    {signatureUrl ? (
-                      <img src={signatureUrl} alt="Voter signature" className="rounded-lg border bg-white max-h-32" style={{ borderColor: "var(--color-border)" }} />
-                    ) : (
-                      <div className="h-24 w-64 rounded-lg animate-pulse" style={{ backgroundColor: "var(--color-muted-bg)" }} />
-                    )}
-                  </div>
-                )}
-                {canDecide && (
-                  <details className="mt-4">
-                    <summary className="cursor-pointer text-xs font-medium underline" style={{ color: "var(--color-accent)" }}>
-                      Change matched voter
-                    </summary>
-                    <div className="mt-2">
-                      <VoterSearchInput onSelect={handleMatchVoter} />
-                    </div>
-                  </details>
-                )}
-              </>
-            ) : (
-              <div>
-                <p className="text-sm mb-3" style={{ color: "var(--color-muted)" }}>
-                  No voter matched yet. Search to link this application to a voter record.
-                </p>
-                <VoterSearchInput onSelect={handleMatchVoter} />
-              </div>
-            )}
-          </section>
+          <SubmittedApplicationCard
+            application={application}
+            canDecide={d.canDecide}
+            editing={d.editing}
+            setEditing={d.setEditing}
+            editForm={d.editForm}
+            setEditForm={d.setEditForm}
+            receivedViaOptions={d.receivedViaOptions}
+            busy={d.busy}
+            handleSaveEdit={d.handleSaveEdit}
+            scanImageUrl={d.scanImageUrl}
+            requestSignatureUrl={d.requestSignatureUrl}
+          />
+          <VoterProfilePanel
+            application={application}
+            verificationMethods={d.verificationMethods}
+            canDecide={d.canDecide}
+            signatureUrl={d.signatureUrl}
+            handleMatchVoter={d.handleMatchVoter}
+          />
         </div>
 
-        {canDecide && (
-          <VerificationChecklist
-            methods={verificationMethods}
-            checklist={checklist}
-            onChange={(method, value) => setChecklist((c) => ({ ...c, [method]: value }))}
-          />
-        )}
+        <ApplicationStatusActions
+          application={application}
+          canDecide={d.canDecide}
+          verificationMethods={d.verificationMethods}
+          checklist={d.checklist}
+          setChecklist={d.setChecklist}
+          allChecked={d.allChecked}
+          busy={d.busy}
+          handleApprove={d.handleApprove}
+          handleMarkAbsSent={d.handleMarkAbsSent}
+          setShowCure={d.setShowCure}
+          setShowReject={d.setShowReject}
+          setShowReapply={d.setShowReapply}
+        />
 
-        {canDecide && (
-          <section
-            className="rounded-xl border p-5 mb-6 flex flex-wrap gap-3"
-            style={{ backgroundColor: "var(--color-surface)", borderColor: "var(--color-border)" }}
-          >
-            <button
-              onClick={handleApprove}
-              disabled={busy || !application.voter_id || !allChecked}
-              title={
-                !application.voter_id
-                  ? "Match a voter before approving"
-                  : !allChecked
-                    ? "Complete the verification checklist before approving"
-                    : undefined
-              }
-              className="cursor-pointer rounded-lg px-4 py-2.5 text-sm font-medium disabled:opacity-50"
-              style={{ backgroundColor: "var(--color-primary)", color: "var(--color-on-primary)" }}
-            >
-              Approve
-            </button>
-            <button
-              onClick={() => setShowCure(true)}
-              disabled={busy}
-              className="cursor-pointer rounded-lg px-4 py-2.5 text-sm font-medium border disabled:opacity-50"
-              style={{ borderColor: "var(--color-border)", color: "var(--color-foreground)" }}
-            >
-              Move to Cure
-            </button>
-            <button
-              onClick={() => setShowReject(true)}
-              disabled={busy}
-              className="cursor-pointer rounded-lg px-4 py-2.5 text-sm font-medium disabled:opacity-50"
-              style={{ backgroundColor: "var(--color-destructive-bg)", color: "var(--color-destructive)" }}
-            >
-              Reject
-            </button>
-          </section>
-        )}
-
-        {application.status === "approved" && (
-          <section
-            className="rounded-xl border p-5 mb-6 flex flex-wrap items-center justify-between gap-3"
-            style={{ backgroundColor: "var(--color-surface)", borderColor: "var(--color-border)" }}
-          >
-            <p className="text-sm" style={{ color: "var(--color-muted)" }}>
-              Approved and awaiting ballot packet mail-out.
-            </p>
-            <button
-              onClick={handleMarkAbsSent}
-              disabled={busy}
-              className="cursor-pointer rounded-lg px-4 py-2.5 text-sm font-medium disabled:opacity-50"
-              style={{ backgroundColor: "var(--color-primary)", color: "var(--color-on-primary)" }}
-            >
-              Mark ABS Sent
-            </button>
-          </section>
-        )}
-
-        {application.status === "cure" && (
-          <section
-            className="rounded-xl border p-5 mb-6"
-            style={{ backgroundColor: "var(--color-surface)", borderColor: "var(--color-border)" }}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <div>
-                <h2 className="text-base font-semibold">Cure in progress</h2>
-                <p className="text-sm" style={{ color: "var(--color-muted)" }}>
-                  Reason: {application.cure_reason?.replaceAll("_", " ")} · Notified via{" "}
-                  {application.cure_notified_via}
-                </p>
-              </div>
-              <button
-                onClick={() => setShowReapply(true)}
-                className="cursor-pointer rounded-lg px-4 py-2.5 text-sm font-medium"
-                style={{ backgroundColor: "var(--color-primary)", color: "var(--color-on-primary)" }}
-              >
-                File Reapplication
-              </button>
-            </div>
-          </section>
-        )}
-
-        {/* Audit trail */}
-        <section className="rounded-xl border p-5" style={{ backgroundColor: "var(--color-surface)", borderColor: "var(--color-border)" }}>
-          <h2 className="text-base font-semibold mb-4">Audit History</h2>
-          <ol className="space-y-2 text-sm">
-            {application.events.map((e) => (
-              <li key={e.id} className="flex items-center justify-between border-t first:border-t-0 pt-2 first:pt-0" style={{ borderColor: "var(--color-border)" }}>
-                <span>
-                  <span className="font-medium capitalize">{e.action.replaceAll("_", " ")}</span>
-                  {e.reason && <span style={{ color: "var(--color-muted)" }}> — {e.reason.replaceAll("_", " ")}</span>}
-                </span>
-                <span style={{ color: "var(--color-muted)" }}>{new Date(e.created_at).toLocaleString()}</span>
-              </li>
-            ))}
-          </ol>
-        </section>
+        <AuditHistoryList events={application.events} />
       </div>
 
-      {showReject && (
-        <Modal title="Reject Application" onClose={() => setShowReject(false)}>
-          <label className="block text-sm font-medium mb-1.5">Rejection reason</label>
-          <select
-            value={rejectReason}
-            onChange={(e) => setRejectReason(e.target.value)}
-            className="w-full rounded-lg border px-3 py-2 text-sm mb-4"
-            style={{ borderColor: "var(--color-border)" }}
-          >
-            {rejectionReasons.map((r) => (
-              <option key={r.value} value={r.value}>
-                {r.label}
-              </option>
-            ))}
-          </select>
-          <ModalActions onCancel={() => setShowReject(false)} onConfirm={handleReject} confirmLabel="Reject" busy={busy} danger />
-        </Modal>
+      {d.showReject && (
+        <RejectApplicationModal
+          rejectReason={d.rejectReason}
+          setRejectReason={d.setRejectReason}
+          rejectionReasons={d.rejectionReasons}
+          onClose={() => d.setShowReject(false)}
+          onConfirm={d.handleReject}
+          busy={d.busy}
+        />
       )}
 
-      {showCure && (
-        <Modal title="Move to Cure" onClose={() => setShowCure(false)}>
-          <label className="block text-sm font-medium mb-1.5">Discrepancy</label>
-          <select
-            value={cureReason}
-            onChange={(e) => setCureReason(e.target.value)}
-            className="w-full rounded-lg border px-3 py-2 text-sm mb-4"
-            style={{ borderColor: "var(--color-border)" }}
-          >
-            {cureReasons.map((r) => (
-              <option key={r.value} value={r.value}>
-                {r.label}
-              </option>
-            ))}
-          </select>
-          <label className="block text-sm font-medium mb-1.5">Notify voter via</label>
-          <select
-            value={notifyVia}
-            onChange={(e) => setNotifyVia(e.target.value)}
-            className="w-full rounded-lg border px-3 py-2 text-sm mb-4"
-            style={{ borderColor: "var(--color-border)" }}
-          >
-            {NOTIFY_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-          <ModalActions onCancel={() => setShowCure(false)} onConfirm={handleCure} confirmLabel="Move to Cure" busy={busy} />
-        </Modal>
+      {d.showCure && (
+        <CureApplicationModal
+          cureReason={d.cureReason}
+          setCureReason={d.setCureReason}
+          cureReasons={d.cureReasons}
+          notifyVia={d.notifyVia}
+          setNotifyVia={d.setNotifyVia}
+          onClose={() => d.setShowCure(false)}
+          onConfirm={d.handleCure}
+          busy={d.busy}
+        />
       )}
 
-      {showReapply && (
-        <Modal title="File Reapplication" onClose={() => setShowReapply(false)}>
-          <p className="text-sm mb-4" style={{ color: "var(--color-muted)" }}>
-            Enter the corrected information as resubmitted by the voter. This creates a linked application in the
-            Reapproval Queue.
-          </p>
-          <div className="space-y-3 mb-4">
-            <EditField label="Full name" value={reapplyForm.submitted_full_name} onChange={(v) => setReapplyForm((f) => ({ ...f, submitted_full_name: v }))} />
-            <EditField label="Address" value={reapplyForm.submitted_address} onChange={(v) => setReapplyForm((f) => ({ ...f, submitted_address: v }))} />
-            <EditField label="DL number" value={reapplyForm.submitted_dl_number} onChange={(v) => setReapplyForm((f) => ({ ...f, submitted_dl_number: v }))} />
-            <EditField label="Mailing address (if different)" value={reapplyForm.mailing_address} onChange={(v) => setReapplyForm((f) => ({ ...f, mailing_address: v }))} />
-          </div>
-          <ModalActions onCancel={() => setShowReapply(false)} onConfirm={handleReapply} confirmLabel="Submit Reapplication" busy={busy} />
-        </Modal>
+      {d.showReapply && (
+        <ReapplyModal
+          reapplyForm={d.reapplyForm}
+          setReapplyForm={d.setReapplyForm}
+          onClose={() => d.setShowReapply(false)}
+          onConfirm={d.handleReapply}
+          busy={d.busy}
+        />
       )}
     </AppShell>
-  )
-}
-
-function EditField({ label, value, onChange }) {
-  const id = `edit-${label.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`
-  return (
-    <div>
-      <label htmlFor={id} className="block text-xs font-medium mb-1" style={{ color: "var(--color-muted)" }}>
-        {label}
-      </label>
-      <input
-        id={id}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-lg border px-3 py-2 text-sm outline-none"
-        style={{ borderColor: "var(--color-border)" }}
-      />
-    </div>
   )
 }

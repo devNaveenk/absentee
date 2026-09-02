@@ -1,14 +1,11 @@
-import { useCallback, useEffect, useState } from "react"
-import { useParams } from "react-router-dom"
 import AppShell from "../components/AppShell"
-import DetailRow from "../components/DetailRow"
-import Modal, { ModalActions } from "../components/Modal"
-import VerificationChecklist from "../components/VerificationChecklist"
-import VoterSearchInput from "../components/VoterSearchInput"
-import { useNotify } from "../context/NotificationContext"
-import { useAuthedObjectUrl } from "../hooks/useAuthedObjectUrl"
-import { useTenantConfig } from "../hooks/useTenantConfig"
-import { api } from "../lib/api"
+import AuditHistoryList from "../components/AuditHistoryList"
+import BallotDecisionActions from "../components/returned-ballots/BallotDecisionActions"
+import BallotVoterProfilePanel from "../components/returned-ballots/BallotVoterProfilePanel"
+import EnvelopeCard from "../components/returned-ballots/EnvelopeCard"
+import RejectBallotModal from "../components/returned-ballots/RejectBallotModal"
+import SignatureComparisonPanel from "../components/returned-ballots/SignatureComparisonPanel"
+import { useReturnedBallotDetail } from "../hooks/useReturnedBallotDetail"
 
 const STATUS_LABELS = {
   received: "Pending Verification",
@@ -17,75 +14,9 @@ const STATUS_LABELS = {
 }
 
 export default function ReturnedBallotDetail() {
-  const { id } = useParams()
-  const notify = useNotify()
-  const [ballot, setBallot] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState("")
-  const [actionError, setActionError] = useState("")
-  const [busy, setBusy] = useState(false)
+  const d = useReturnedBallotDetail()
 
-  const [showReject, setShowReject] = useState(false)
-  const [rejectReason, setRejectReason] = useState("")
-
-  const { tenant } = useTenantConfig()
-  const verificationMethods = tenant?.verification_methods || []
-  const rejectionReasons = (tenant?.ballot_rejection_reasons || []).map((v) => ({ value: v, label: v.replaceAll("_", " ") }))
-  const [checklist, setChecklist] = useState({})
-
-  useEffect(() => {
-    if (rejectionReasons.length && !rejectReason) setRejectReason(rejectionReasons[0].value)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tenant])
-
-  const load = useCallback(() => {
-    setLoading(true)
-    setError("")
-    api
-      .get(`/returned-ballots/${id}`)
-      .then((res) => setBallot(res.data))
-      .catch(() => setError("Could not load this returned ballot."))
-      .finally(() => setLoading(false))
-  }, [id])
-
-  useEffect(load, [load])
-
-  const envelopeImageUrl = useAuthedObjectUrl(ballot?.has_envelope_scan ? `/returned-ballots/${id}/envelope-image` : null)
-  const signatureUrl = useAuthedObjectUrl(ballot?.voter?.has_signature ? `/voters/${ballot.voter.id}/signature` : null)
-  const requestSignatureUrl = useAuthedObjectUrl(
-    ballot?.original_application?.has_signature ? `/applications/${ballot.original_application.id}/signature` : null
-  )
-
-  const runAction = async (fn, successMessage) => {
-    setActionError("")
-    setBusy(true)
-    try {
-      await fn()
-      if (successMessage) notify(successMessage, "success")
-      load()
-    } catch (err) {
-      const message = err.response?.data?.detail || "Action failed."
-      setActionError(message)
-      notify(message, "error")
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const handleMatchVoter = (voter) =>
-    runAction(() => api.post(`/returned-ballots/${id}/match-voter`, { voter_id: voter.id }), `Matched to ${voter.full_name}`)
-  const handleVerify = () =>
-    runAction(
-      () => api.post(`/returned-ballots/${id}/verify`, { verification_checklist: checklist }),
-      "Ballot verified — routed to Final Bin"
-    )
-  const handleReject = () =>
-    runAction(async () => {
-      await api.post(`/returned-ballots/${id}/reject`, { reason: rejectReason })
-      setShowReject(false)
-    }, "Ballot rejected")
-
-  if (loading) {
+  if (d.loading) {
     return (
       <AppShell role="tenant">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
@@ -95,20 +26,19 @@ export default function ReturnedBallotDetail() {
     )
   }
 
-  if (error || !ballot) {
+  if (d.error || !d.ballot) {
     return (
       <AppShell role="tenant">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
           <div role="alert" className="rounded-lg px-4 py-3 text-sm" style={{ backgroundColor: "var(--color-destructive-bg)", color: "var(--color-destructive)" }}>
-            {error || "Returned ballot not found."}
+            {d.error || "Returned ballot not found."}
           </div>
         </div>
       </AppShell>
     )
   }
 
-  const canDecide = ballot.status === "received"
-  const allChecked = verificationMethods.every((m) => checklist[m])
+  const { ballot } = d
 
   return (
     <AppShell role="tenant">
@@ -130,208 +60,55 @@ export default function ReturnedBallotDetail() {
           </span>
         </div>
 
-        {actionError && (
+        {d.actionError && (
           <div role="alert" className="mb-5 rounded-lg px-4 py-3 text-sm" style={{ backgroundColor: "var(--color-destructive-bg)", color: "var(--color-destructive)" }}>
-            {actionError}
+            {d.actionError}
           </div>
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
-          {/* Outer envelope (left) */}
-          <section className="rounded-xl border p-5" style={{ backgroundColor: "var(--color-surface)", borderColor: "var(--color-border)" }}>
-            <h2 className="text-base font-semibold mb-4">Outer Envelope / Flap</h2>
-            <dl className="space-y-3 text-sm">
-              <DetailRow label="Full name (as written)" value={ballot.submitted_full_name} />
-              <DetailRow label="Address (as written)" value={ballot.submitted_address} />
-            </dl>
-
-            {ballot.has_envelope_scan && (
-              <div className="mt-4">
-                <p className="text-xs font-medium mb-1.5" style={{ color: "var(--color-muted)" }}>
-                  Scanned envelope image
-                </p>
-                {envelopeImageUrl ? (
-                  <img src={envelopeImageUrl} alt="Scanned envelope" className="rounded-lg border max-h-64 w-full object-contain" style={{ borderColor: "var(--color-border)" }} />
-                ) : (
-                  <div className="h-32 rounded-lg animate-pulse" style={{ backgroundColor: "var(--color-muted-bg)" }} />
-                )}
-              </div>
-            )}
-
-            {ballot.original_application && (
-              <div className="mt-4 pt-4 border-t" style={{ borderColor: "var(--color-border)" }}>
-                <p className="text-xs font-medium mb-2" style={{ color: "var(--color-muted)" }}>
-                  Original absentee application
-                </p>
-                <dl className="space-y-2 text-sm">
-                  <DetailRow label="Application #" value={ballot.original_application.application_number} />
-                  <DetailRow label="Submitted name" value={ballot.original_application.submitted_full_name} />
-                  <DetailRow label="Submitted address" value={ballot.original_application.submitted_address} />
-                </dl>
-              </div>
-            )}
-          </section>
-
-          {/* Voter profile (right) */}
-          <section className="rounded-xl border p-5" style={{ backgroundColor: "var(--color-surface)", borderColor: "var(--color-border)" }}>
-            <h2 className="text-base font-semibold mb-4">Unified Voter Profile</h2>
-
-            {ballot.voter ? (
-              <>
-                <dl className="space-y-3 text-sm">
-                  <DetailRow label="Full name" value={ballot.voter.full_name} required={verificationMethods.includes("full_name")} />
-                  <DetailRow label="Registered address" value={ballot.voter.registered_address} required={verificationMethods.includes("address")} />
-                  <DetailRow label="DL number" value={ballot.voter.dl_number || "—"} required={verificationMethods.includes("dl_number")} />
-                </dl>
-                {ballot.voter.has_signature && (
-                  <div className="mt-4">
-                    <p className="text-xs font-medium mb-1.5" style={{ color: "var(--color-muted)" }}>
-                      Signature on file
-                    </p>
-                    {signatureUrl ? (
-                      <img src={signatureUrl} alt="Voter signature" className="rounded-lg border bg-white max-h-32" style={{ borderColor: "var(--color-border)" }} />
-                    ) : (
-                      <div className="h-24 w-64 rounded-lg animate-pulse" style={{ backgroundColor: "var(--color-muted-bg)" }} />
-                    )}
-                  </div>
-                )}
-                {canDecide && (
-                  <details className="mt-4">
-                    <summary className="cursor-pointer text-xs font-medium underline" style={{ color: "var(--color-accent)" }}>
-                      Change matched voter
-                    </summary>
-                    <div className="mt-2">
-                      <VoterSearchInput onSelect={handleMatchVoter} />
-                    </div>
-                  </details>
-                )}
-              </>
-            ) : (
-              <div>
-                <p className="text-sm mb-3" style={{ color: "var(--color-muted)" }}>
-                  No voter matched yet. Search to link this ballot to a voter record.
-                </p>
-                <VoterSearchInput onSelect={handleMatchVoter} />
-              </div>
-            )}
-          </section>
+          <EnvelopeCard ballot={ballot} envelopeImageUrl={d.envelopeImageUrl} />
+          <BallotVoterProfilePanel
+            ballot={ballot}
+            verificationMethods={d.verificationMethods}
+            canDecide={d.canDecide}
+            signatureUrl={d.signatureUrl}
+            handleMatchVoter={d.handleMatchVoter}
+          />
         </div>
 
-        {(ballot.original_application?.has_signature || ballot.has_envelope_scan || ballot.voter?.has_signature) && (
-          <section className="rounded-xl border p-5 mb-6" style={{ backgroundColor: "var(--color-surface)", borderColor: "var(--color-border)" }}>
-            <h2 className="text-base font-semibold mb-4">Signature Comparison</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <SignaturePanel label="Request Form Signature" url={requestSignatureUrl} present={ballot.original_application?.has_signature} />
-              <SignaturePanel label="Envelope Signature" url={envelopeImageUrl} present={ballot.has_envelope_scan} />
-              <SignaturePanel label="Voter Profile Signature" url={signatureUrl} present={ballot.voter?.has_signature} />
-            </div>
-          </section>
-        )}
+        <SignatureComparisonPanel
+          ballot={ballot}
+          requestSignatureUrl={d.requestSignatureUrl}
+          envelopeImageUrl={d.envelopeImageUrl}
+          signatureUrl={d.signatureUrl}
+        />
 
-        {canDecide && (
-          <VerificationChecklist
-            methods={verificationMethods}
-            checklist={checklist}
-            onChange={(method, value) => setChecklist((c) => ({ ...c, [method]: value }))}
-          />
-        )}
+        <BallotDecisionActions
+          ballot={ballot}
+          canDecide={d.canDecide}
+          verificationMethods={d.verificationMethods}
+          checklist={d.checklist}
+          setChecklist={d.setChecklist}
+          allChecked={d.allChecked}
+          busy={d.busy}
+          handleVerify={d.handleVerify}
+          setShowReject={d.setShowReject}
+        />
 
-        {canDecide && (
-          <section
-            className="rounded-xl border p-5 mb-6 flex flex-wrap gap-3"
-            style={{ backgroundColor: "var(--color-surface)", borderColor: "var(--color-border)" }}
-          >
-            <button
-              onClick={handleVerify}
-              disabled={busy || !ballot.voter_id || !allChecked}
-              title={
-                !ballot.voter_id
-                  ? "Match a voter before final approval"
-                  : !allChecked
-                    ? "Complete the verification checklist before final approval"
-                    : undefined
-              }
-              className="cursor-pointer rounded-lg px-4 py-2.5 text-sm font-medium disabled:opacity-50"
-              style={{ backgroundColor: "var(--color-primary)", color: "var(--color-on-primary)" }}
-            >
-              Final Approval → Final Bin
-            </button>
-            <button
-              onClick={() => setShowReject(true)}
-              disabled={busy}
-              className="cursor-pointer rounded-lg px-4 py-2.5 text-sm font-medium disabled:opacity-50"
-              style={{ backgroundColor: "var(--color-destructive-bg)", color: "var(--color-destructive)" }}
-            >
-              Reject
-            </button>
-          </section>
-        )}
-
-        {ballot.status === "rejected" && ballot.rejection_reason && (
-          <section className="rounded-xl border p-5 mb-6" style={{ backgroundColor: "var(--color-surface)", borderColor: "var(--color-border)" }}>
-            <p className="text-sm">
-              <span className="font-medium">Rejected:</span>{" "}
-              {ballot.rejection_reason?.replaceAll("_", " ")}
-            </p>
-          </section>
-        )}
-
-        <section className="rounded-xl border p-5" style={{ backgroundColor: "var(--color-surface)", borderColor: "var(--color-border)" }}>
-          <h2 className="text-base font-semibold mb-4">Audit History</h2>
-          <ol className="space-y-2 text-sm">
-            {ballot.events.map((e) => (
-              <li key={e.id} className="flex items-center justify-between border-t first:border-t-0 pt-2 first:pt-0" style={{ borderColor: "var(--color-border)" }}>
-                <span>
-                  <span className="font-medium capitalize">{e.action.replaceAll("_", " ")}</span>
-                  {e.reason && <span style={{ color: "var(--color-muted)" }}> — {e.reason.replaceAll("_", " ")}</span>}
-                </span>
-                <span style={{ color: "var(--color-muted)" }}>{new Date(e.created_at).toLocaleString()}</span>
-              </li>
-            ))}
-          </ol>
-        </section>
+        <AuditHistoryList events={ballot.events} />
       </div>
 
-      {showReject && (
-        <Modal title="Reject Returned Ballot" onClose={() => setShowReject(false)}>
-          <label className="block text-sm font-medium mb-1.5">Rejection reason</label>
-          <select
-            value={rejectReason}
-            onChange={(e) => setRejectReason(e.target.value)}
-            className="w-full rounded-lg border px-3 py-2 text-sm mb-4"
-            style={{ borderColor: "var(--color-border)" }}
-          >
-            {rejectionReasons.map((r) => (
-              <option key={r.value} value={r.value}>
-                {r.label}
-              </option>
-            ))}
-          </select>
-          <ModalActions onCancel={() => setShowReject(false)} onConfirm={handleReject} confirmLabel="Reject" busy={busy} danger />
-        </Modal>
+      {d.showReject && (
+        <RejectBallotModal
+          rejectReason={d.rejectReason}
+          setRejectReason={d.setRejectReason}
+          rejectionReasons={d.rejectionReasons}
+          onClose={() => d.setShowReject(false)}
+          onConfirm={d.handleReject}
+          busy={d.busy}
+        />
       )}
     </AppShell>
-  )
-}
-
-function SignaturePanel({ label, url, present }) {
-  return (
-    <div>
-      <p className="text-xs font-medium mb-1.5" style={{ color: "var(--color-muted)" }}>
-        {label}
-      </p>
-      {!present ? (
-        <div
-          className="h-24 rounded-lg border flex items-center justify-center text-xs"
-          style={{ borderColor: "var(--color-border)", color: "var(--color-muted)" }}
-        >
-          Not on file
-        </div>
-      ) : url ? (
-        <img src={url} alt={label} className="rounded-lg border bg-white max-h-24 w-full object-contain" style={{ borderColor: "var(--color-border)" }} />
-      ) : (
-        <div className="h-24 rounded-lg animate-pulse" style={{ backgroundColor: "var(--color-muted-bg)" }} />
-      )}
-    </div>
   )
 }
