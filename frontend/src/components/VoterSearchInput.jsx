@@ -1,28 +1,21 @@
+import { useQuery } from "@tanstack/react-query"
 import { useEffect, useRef, useState } from "react"
+import { useDebouncedValue } from "../hooks/useDebouncedValue"
 import { api } from "../lib/api"
 
 export default function VoterSearchInput({ onSelect, placeholder = "Search by name, DL number, or voter ID…" }) {
   const [query, setQuery] = useState("")
-  const [results, setResults] = useState([])
   const [open, setOpen] = useState(false)
-  const [loading, setLoading] = useState(false)
   const containerRef = useRef(null)
 
-  useEffect(() => {
-    if (query.trim().length < 2) {
-      setResults([])
-      return
-    }
-    setLoading(true)
-    const handle = setTimeout(() => {
-      api
-        .get("/voters/search", { params: { q: query.trim(), limit: 10 } })
-        .then((res) => setResults(res.data))
-        .catch(() => setResults([]))
-        .finally(() => setLoading(false))
-    }, 200)
-    return () => clearTimeout(handle)
-  }, [query])
+  const debouncedQuery = useDebouncedValue(query.trim(), 200)
+  const searchActive = debouncedQuery.length >= 2
+
+  const { data: results, isFetching: loading } = useQuery({
+    queryKey: ["voters", "search", debouncedQuery],
+    queryFn: () => api.get("/voters/search", { params: { q: debouncedQuery, limit: 10 } }).then((res) => res.data),
+    enabled: searchActive,
+  })
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -55,11 +48,11 @@ export default function VoterSearchInput({ onSelect, placeholder = "Search by na
           className="absolute z-20 mt-1 w-full max-h-72 overflow-y-auto rounded-lg border shadow-lg"
           style={{ backgroundColor: "var(--color-surface)", borderColor: "var(--color-border)" }}
         >
-          {loading ? (
+          {loading || !searchActive ? (
             <p className="px-3.5 py-3 text-sm" style={{ color: "var(--color-muted)" }}>
               Searching…
             </p>
-          ) : results.length === 0 ? (
+          ) : !results?.length ? (
             <p className="px-3.5 py-3 text-sm" style={{ color: "var(--color-muted)" }}>
               No matching voters found.
             </p>
@@ -72,7 +65,6 @@ export default function VoterSearchInput({ onSelect, placeholder = "Search by na
                 onClick={() => {
                   onSelect(voter)
                   setQuery("")
-                  setResults([])
                   setOpen(false)
                 }}
                 className="cursor-pointer w-full text-left px-3.5 py-2.5 border-t first:border-t-0 hover:opacity-80"

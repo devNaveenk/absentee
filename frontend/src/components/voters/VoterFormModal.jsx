@@ -1,3 +1,4 @@
+import { useMutation } from "@tanstack/react-query"
 import { useState } from "react"
 import { useNotify } from "../../context/NotificationContext"
 import { api } from "../../lib/api"
@@ -32,7 +33,6 @@ export default function VoterFormModal({ voter, onClose, onSaved }) {
   )
   const [signatureFile, setSignatureFile] = useState(null)
   const [error, setError] = useState("")
-  const [submitting, setSubmitting] = useState(false)
 
   const update = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }))
 
@@ -46,11 +46,8 @@ export default function VoterFormModal({ voter, onClose, onSaved }) {
     date_of_birth: form.date_of_birth || null,
   })
 
-  const submit = async (e) => {
-    e.preventDefault()
-    setError("")
-    setSubmitting(true)
-    try {
+  const saveMutation = useMutation({
+    mutationFn: async () => {
       const voterId = isEdit
         ? (await api.patch(`/voters/${voter.id}`, toPayload())).data.id
         : (await api.post("/voters", toPayload())).data.id
@@ -62,16 +59,22 @@ export default function VoterFormModal({ voter, onClose, onSaved }) {
           headers: { "Content-Type": "multipart/form-data" },
         })
       }
-
+    },
+    onSuccess: () => {
       notify(isEdit ? `Updated ${form.full_name}` : `Added ${form.full_name} to the voter roll`, "success")
       onSaved()
-    } catch (err) {
+    },
+    onError: (err) => {
       const message = err.response?.data?.detail || "Could not save voter."
       setError(message)
       notify(message, "error")
-    } finally {
-      setSubmitting(false)
-    }
+    },
+  })
+
+  const submit = (e) => {
+    e.preventDefault()
+    setError("")
+    saveMutation.mutate()
   }
 
   return (
@@ -103,7 +106,7 @@ export default function VoterFormModal({ voter, onClose, onSaved }) {
           />
         </div>
 
-        <ModalActions onCancel={onClose} onConfirm={submit} confirmLabel={isEdit ? "Save changes" : "Add voter"} busy={submitting} />
+        <ModalActions onCancel={onClose} onConfirm={submit} confirmLabel={isEdit ? "Save changes" : "Add voter"} busy={saveMutation.isPending} />
       </form>
     </Modal>
   )

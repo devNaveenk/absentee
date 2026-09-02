@@ -1,30 +1,28 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useEffect, useState } from "react"
 import { useNotify } from "../context/NotificationContext"
 import { api } from "../lib/api"
-import { useTenantConfig } from "./useTenantConfig"
+import { TENANT_ME_QUERY_KEY, useTenantConfig } from "./useTenantConfig"
+
+const TEAM_QUERY_KEY = ["tenant", "settings", "users"]
 
 /** Owns all Settings-page state, API calls, and business rules (processing
  *  mode, reason lists, branding, team management) so the page/tab components
  *  stay purely presentational -- they read what this hook returns and call
- *  its handlers, nothing more. */
+ *  its handlers, nothing more. Mutations invalidate TENANT_ME_QUERY_KEY so
+ *  every consumer of useTenantConfig (header logo, nav, forms) picks up the
+ *  change immediately instead of each screen tracking its own stale copy. */
 export function useTenantSettings() {
   const notify = useNotify()
-  const { tenant, loading, refetch } = useTenantConfig()
+  const queryClient = useQueryClient()
+  const { tenant, loading } = useTenantConfig()
 
-  const [savingMode, setSavingMode] = useState(false)
+  const invalidateTenant = () => queryClient.invalidateQueries({ queryKey: TENANT_ME_QUERY_KEY })
 
   const [reasonLists, setReasonLists] = useState({})
-  const [savingReasons, setSavingReasons] = useState(false)
-
   const [branding, setBranding] = useState({ display_name: "", currency: "USD" })
-  const [savingBranding, setSavingBranding] = useState(false)
   const [logoFile, setLogoFile] = useState(null)
-  const [uploadingLogo, setUploadingLogo] = useState(false)
-
-  const [users, setUsers] = useState([])
-  const [loadingUsers, setLoadingUsers] = useState(true)
   const [newUser, setNewUser] = useState({ email: "", password: "", role: "tenant_user" })
-  const [creatingUser, setCreatingUser] = useState(false)
 
   useEffect(() => {
     if (!tenant) return
@@ -37,16 +35,10 @@ export function useTenantSettings() {
     setBranding({ display_name: tenant.display_name || "", currency: tenant.currency || "USD" })
   }, [tenant])
 
-  const loadUsers = () => {
-    setLoadingUsers(true)
-    api
-      .get("/tenant/settings/users")
-      .then((res) => setUsers(res.data))
-      .catch(() => notify("Could not load team members.", "error"))
-      .finally(() => setLoadingUsers(false))
-  }
-
-  useEffect(loadUsers, [])
+  const usersQuery = useQuery({
+    queryKey: TEAM_QUERY_KEY,
+    queryFn: () => api.get("/tenant/settings/users").then((res) => res.data),
+  })
 
   const addReasonItem = (key) => setReasonLists((r) => ({ ...r, [key]: [...(r[key] || []), ""] }))
   const updateReasonItem = (key, idx, value) =>
@@ -54,108 +46,119 @@ export function useTenantSettings() {
   const removeReasonItem = (key, idx) =>
     setReasonLists((r) => ({ ...r, [key]: r[key].filter((_, i) => i !== idx) }))
 
-  const saveProcessingMode = async (mode) => {
-    if (mode === tenant?.processing_mode) return
-    setSavingMode(true)
-    try {
-      await api.patch("/tenant/settings/processing-mode", { processing_mode: mode })
+  const modeMutation = useMutation({
+    mutationFn: (mode) => api.patch("/tenant/settings/processing-mode", { processing_mode: mode }),
+    onSuccess: (_data, mode) => {
       notify(`Switched to ${mode === "scan" ? "Scan" : "Manual"} Mode`, "success")
-      await refetch()
-    } catch (err) {
-      notify(err.response?.data?.detail || "Could not update processing mode.", "error")
-    } finally {
-      setSavingMode(false)
-    }
+      invalidateTenant()
+    },
+    onError: (err) => notify(err.response?.data?.detail || "Could not update processing mode.", "error"),
+  })
+  const saveProcessingMode = (mode) => {
+    if (mode === tenant?.processing_mode) return
+    modeMutation.mutate(mode)
   }
 
-  const saveReasonLists = async () => {
-    setSavingReasons(true)
-    try {
-      const payload = Object.fromEntries(
-        Object.entries(reasonLists).map(([k, v]) => [k, v.map((s) => s.trim()).filter(Boolean)])
-      )
-      await api.patch("/tenant/settings/reasons", payload)
+  const reasonsMutation = useMutation({
+    mutationFn: (payload) => api.patch("/tenant/settings/reasons", payload),
+    onSuccess: () => {
       notify("Reason lists updated", "success")
-      await refetch()
-    } catch (err) {
-      notify(err.response?.data?.detail || "Could not update reason lists.", "error")
-    } finally {
-      setSavingReasons(false)
-    }
+      invalidateTenant()
+    },
+    onError: (err) => notify(err.response?.data?.detail || "Could not update reason lists.", "error"),
+  })
+  const saveReasonLists = () => {
+    const payload = Object.fromEntries(
+      Object.entries(reasonLists).map(([k, v]) => [k, v.map((s) => s.trim()).filter(Boolean)])
+    )
+    reasonsMutation.mutate(payload)
   }
 
-  const saveBranding = async () => {
-    setSavingBranding(true)
-    try {
-      await api.patch("/tenant/settings/branding", branding)
+  const brandingMutation = useMutation({
+    mutationFn: (payload) => api.patch("/tenant/settings/branding", payload),
+    onSuccess: () => {
       notify("Branding updated", "success")
-      await refetch()
-    } catch (err) {
-      notify(err.response?.data?.detail || "Could not update branding.", "error")
-    } finally {
-      setSavingBranding(false)
-    }
-  }
+      invalidateTenant()
+    },
+    onError: (err) => notify(err.response?.data?.detail || "Could not update branding.", "error"),
+  })
+  const saveBranding = () => brandingMutation.mutate(branding)
 
-  const uploadLogo = async () => {
-    if (!logoFile) return
-    setUploadingLogo(true)
-    try {
+  const logoMutation = useMutation({
+    mutationFn: (file) => {
       const formData = new FormData()
-      formData.append("file", logoFile)
-      await api.post("/tenant/settings/branding/logo", formData, {
+      formData.append("file", file)
+      return api.post("/tenant/settings/branding/logo", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       })
+    },
+    onSuccess: () => {
       notify("Logo uploaded", "success")
       setLogoFile(null)
-      await refetch()
-    } catch (err) {
-      notify(err.response?.data?.detail || "Could not upload logo.", "error")
-    } finally {
-      setUploadingLogo(false)
-    }
+      invalidateTenant()
+    },
+    onError: (err) => notify(err.response?.data?.detail || "Could not upload logo.", "error"),
+  })
+  const uploadLogo = () => {
+    if (!logoFile) return
+    logoMutation.mutate(logoFile)
   }
 
-  const createUser = async (e) => {
-    e.preventDefault()
-    setCreatingUser(true)
-    try {
-      await api.post("/tenant/settings/users", newUser)
-      notify(`Added ${newUser.email} to the team`, "success")
+  const createUserMutation = useMutation({
+    mutationFn: (payload) => api.post("/tenant/settings/users", payload),
+    onSuccess: (_data, payload) => {
+      notify(`Added ${payload.email} to the team`, "success")
       setNewUser({ email: "", password: "", role: "tenant_user" })
-      loadUsers()
-    } catch (err) {
-      notify(err.response?.data?.detail || "Could not add team member.", "error")
-    } finally {
-      setCreatingUser(false)
-    }
+      queryClient.invalidateQueries({ queryKey: TEAM_QUERY_KEY })
+    },
+    onError: (err) => notify(err.response?.data?.detail || "Could not add team member.", "error"),
+  })
+  const createUser = (e) => {
+    e.preventDefault()
+    createUserMutation.mutate(newUser)
   }
 
-  const toggleUserStatus = async (user) => {
-    try {
-      await api.patch(`/tenant/settings/users/${user.id}/status`, null, { params: { is_active: !user.is_active } })
+  const toggleStatusMutation = useMutation({
+    mutationFn: (user) =>
+      api.patch(`/tenant/settings/users/${user.id}/status`, null, { params: { is_active: !user.is_active } }),
+    onSuccess: (_data, user) => {
       notify(`${user.email} ${user.is_active ? "deactivated" : "reactivated"}`, "success")
-      loadUsers()
-    } catch (err) {
-      notify(err.response?.data?.detail || "Could not update team member.", "error")
-    }
-  }
+      queryClient.invalidateQueries({ queryKey: TEAM_QUERY_KEY })
+    },
+    onError: (err) => notify(err.response?.data?.detail || "Could not update team member.", "error"),
+  })
+  const toggleUserStatus = (user) => toggleStatusMutation.mutate(user)
 
   return {
     tenant,
     loading,
-    processingMode: { savingMode, saveProcessingMode },
-    reasons: { reasonLists, savingReasons, addReasonItem, updateReasonItem, removeReasonItem, saveReasonLists },
+    processingMode: { savingMode: modeMutation.isPending, saveProcessingMode },
+    reasons: {
+      reasonLists,
+      savingReasons: reasonsMutation.isPending,
+      addReasonItem,
+      updateReasonItem,
+      removeReasonItem,
+      saveReasonLists,
+    },
     brandingState: {
       branding,
       setBranding,
-      savingBranding,
+      savingBranding: brandingMutation.isPending,
       saveBranding,
       logoFile,
       setLogoFile,
-      uploadingLogo,
+      uploadingLogo: logoMutation.isPending,
       uploadLogo,
     },
-    team: { users, loadingUsers, newUser, setNewUser, creatingUser, createUser, toggleUserStatus },
+    team: {
+      users: usersQuery.data ?? [],
+      loadingUsers: usersQuery.isLoading,
+      newUser,
+      setNewUser,
+      creatingUser: createUserMutation.isPending,
+      createUser,
+      toggleUserStatus,
+    },
   }
 }

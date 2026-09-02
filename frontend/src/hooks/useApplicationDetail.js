@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useEffect, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { useNotify } from "../context/NotificationContext"
 import { useAuthedObjectUrl } from "./useAuthedObjectUrl"
@@ -11,20 +12,21 @@ function optionList(values) {
 
 const EMPTY_FORM = { submitted_full_name: "", submitted_address: "", submitted_dl_number: "", mailing_address: "", received_via: "" }
 
+const applicationQueryKey = (id) => ["application", id]
+
 /** Owns everything about the Application Detail page that isn't presentation:
  *  loading the record, the approve/reject/cure/reapply/edit business actions,
  *  and the tenant-derived option lists the modals need. Keeps the page and
- *  its sub-components purely about rendering what this hook returns. */
+ *  its sub-components purely about rendering what this hook returns. Every
+ *  mutation invalidates this application's query so the detail view reflects
+ *  the new status immediately, same effect the old load()-after-action had. */
 export function useApplicationDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const notify = useNotify()
+  const queryClient = useQueryClient()
 
-  const [application, setApplication] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState("")
   const [actionError, setActionError] = useState("")
-  const [busy, setBusy] = useState(false)
 
   const [showReject, setShowReject] = useState(false)
   const [rejectReason, setRejectReason] = useState("")
@@ -48,32 +50,26 @@ export function useApplicationDetail() {
 
   useEffect(() => {
     if (rejectionReasons.length && !rejectReason) setRejectReason(rejectionReasons[0].value)
-    if (cureReasons.length && !cureReason) setCureReason(cureReasons[0].value)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenant])
 
-  const load = useCallback(() => {
-    setLoading(true)
-    setError("")
-    api
-      .get(`/applications/${id}`)
-      .then((res) => {
-        setApplication(res.data)
-        const formFields = {
-          submitted_full_name: res.data.submitted_full_name,
-          submitted_address: res.data.submitted_address,
-          submitted_dl_number: res.data.submitted_dl_number || "",
-          mailing_address: res.data.mailing_address || "",
-          received_via: res.data.received_via || "",
-        }
-        setEditForm(formFields)
-        setReapplyForm(formFields)
-      })
-      .catch(() => setError("Could not load this application."))
-      .finally(() => setLoading(false))
-  }, [id])
+  const { data: application, isLoading: loading, isError } = useQuery({
+    queryKey: applicationQueryKey(id),
+    queryFn: () => api.get(`/applications/${id}`).then((res) => res.data),
+  })
 
-  useEffect(load, [load])
+  useEffect(() => {
+    if (!application) return
+    const formFields = {
+      submitted_full_name: application.submitted_full_name,
+      submitted_address: application.submitted_address,
+      submitted_dl_number: application.submitted_dl_number || "",
+      mailing_address: application.mailing_address || "",
+      received_via: application.received_via || "",
+    }
+    setEditForm(formFields)
+    setReapplyForm(formFields)
+  }, [application])
 
   const scanImageUrl = useAuthedObjectUrl(application?.has_scan_image ? `/applications/${id}/scan-image` : null)
   const signatureUrl = useAuthedObjectUrl(
@@ -81,58 +77,87 @@ export function useApplicationDetail() {
   )
   const requestSignatureUrl = useAuthedObjectUrl(application?.has_signature ? `/applications/${id}/signature` : null)
 
-  const runAction = async (fn, successMessage) => {
-    setActionError("")
-    setBusy(true)
-    try {
-      await fn()
-      if (successMessage) notify(successMessage, "success")
-      load()
-    } catch (err) {
-      const message = err.response?.data?.detail || "Action failed."
-      setActionError(message)
-      notify(message, "error")
-    } finally {
-      setBusy(false)
-    }
-  }
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: applicationQueryKey(id) })
 
+  // Named with a `use` prefix (not `runMutation`) even though it's a plain
+  // factory, not a component -- it calls useMutation internally, so eslint's
+  // rules-of-hooks and readers alike need to recognize it as a hook. Called
+  // unconditionally, a fixed number of times, in the same order every
+  // render below -- satisfies the Rules of Hooks the same as any other hook.
+  const useActionMutation = ({ mutationFn, successMessage, onSuccess }) =>
+    useMutation({
+      mutationFn,
+      onSuccess: (data) => {
+        setActionError("")
+        if (successMessage) notify(successMessage, "success")
+        invalidate()
+        onSuccess?.(data)
+      },
+      onError: (err) => {
+        const message = err.response?.data?.detail || "Action failed."
+        setActionError(message)
+        notify(message, "error")
+      },
+    })
+
+  const matchVoterMutation = useActionMutation({
+    mutationFn: (voter) => api.post(`/applications/${id}/match-voter`, { voter_id: voter.id }).then(() => voter),
+    successMessage: null,
+  })
   const handleMatchVoter = (voter) =>
-    runAction(() => api.post(`/applications/${id}/match-voter`, { voter_id: voter.id }), `Matched to ${voter.full_name}`)
+    matchVoterMutation.mutate(voter, { onSuccess: () => notify(`Matched to ${voter.full_name}`, "success") })
 
-  const handleApprove = () =>
-    runAction(
-      () => api.post(`/applications/${id}/approve`, { verification_checklist: checklist }),
-      "Application approved — pending ABS mail-out"
-    )
+  const approveMutation = useActionMutation({
+    mutationFn: () => api.post(`/applications/${id}/approve`, { verification_checklist: checklist }),
+    successMessage: "Application approved — pending ABS mail-out",
+  })
+  const handleApprove = () => approveMutation.mutate()
 
-  const handleMarkAbsSent = () =>
-    runAction(() => api.post(`/applications/${id}/mark-abs-sent`), "Marked as ABS Sent")
+  const markAbsSentMutation = useActionMutation({
+    mutationFn: () => api.post(`/applications/${id}/mark-abs-sent`),
+    successMessage: "Marked as ABS Sent",
+  })
+  const handleMarkAbsSent = () => markAbsSentMutation.mutate()
 
-  const handleReject = () =>
-    runAction(async () => {
-      await api.post(`/applications/${id}/reject`, { reason: rejectReason })
-      setShowReject(false)
-    }, "Application rejected")
+  const rejectMutation = useActionMutation({
+    mutationFn: () => api.post(`/applications/${id}/reject`, { reason: rejectReason }),
+    successMessage: "Application rejected",
+    onSuccess: () => setShowReject(false),
+  })
+  const handleReject = () => rejectMutation.mutate()
 
-  const handleCure = () =>
-    runAction(async () => {
-      await api.post(`/applications/${id}/cure`, { reason: cureReason, notify_via: notifyVia })
-      setShowCure(false)
-    }, "Moved to Cure — voter will be notified")
+  const cureMutation = useActionMutation({
+    mutationFn: () => api.post(`/applications/${id}/cure`, { reason: cureReason, notify_via: notifyVia }),
+    successMessage: "Moved to Cure — voter will be notified",
+    onSuccess: () => setShowCure(false),
+  })
+  const handleCure = () => cureMutation.mutate()
 
-  const handleSaveEdit = () =>
-    runAction(async () => {
-      await api.patch(`/applications/${id}`, editForm)
-      setEditing(false)
-    }, "Application fields updated")
+  const saveEditMutation = useActionMutation({
+    mutationFn: () => api.patch(`/applications/${id}`, editForm),
+    successMessage: "Application fields updated",
+    onSuccess: () => setEditing(false),
+  })
+  const handleSaveEdit = () => saveEditMutation.mutate()
 
-  const handleReapply = () =>
-    runAction(async () => {
-      const { data } = await api.post(`/applications/${id}/reapply`, reapplyForm)
+  const reapplyMutation = useActionMutation({
+    mutationFn: () => api.post(`/applications/${id}/reapply`, reapplyForm).then((res) => res.data),
+    successMessage: "Reapplication submitted",
+    onSuccess: (data) => {
       setShowReapply(false)
       navigate(`/applications/${data.id}`)
-    }, "Reapplication submitted")
+    },
+  })
+  const handleReapply = () => reapplyMutation.mutate()
+
+  const busy =
+    matchVoterMutation.isPending ||
+    approveMutation.isPending ||
+    markAbsSentMutation.isPending ||
+    rejectMutation.isPending ||
+    cureMutation.isPending ||
+    saveEditMutation.isPending ||
+    reapplyMutation.isPending
 
   const canDecide = application?.status === "unprocessed"
   const allChecked = verificationMethods.every((m) => checklist[m])
@@ -140,7 +165,7 @@ export function useApplicationDetail() {
   return {
     application,
     loading,
-    error,
+    error: isError ? "Could not load this application." : "",
     actionError,
     busy,
     canDecide,

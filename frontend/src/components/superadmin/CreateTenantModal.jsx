@@ -1,3 +1,4 @@
+import { useMutation } from "@tanstack/react-query"
 import { useState } from "react"
 import { useNotify } from "../../context/NotificationContext"
 import { api } from "../../lib/api"
@@ -31,7 +32,6 @@ export default function CreateTenantModal({ onClose, onCreated }) {
   const [verificationMethods, setVerificationMethods] = useState(OTHER_DEFAULT_METHODS)
   const [methodsTouched, setMethodsTouched] = useState(false)
   const [error, setError] = useState("")
-  const [submitting, setSubmitting] = useState(false)
 
   const update = (field) => (e) => {
     const value = e.target.value
@@ -48,27 +48,30 @@ export default function CreateTenantModal({ onClose, onCreated }) {
     )
   }
 
-  const submit = async (e) => {
-    e.preventDefault()
-    setError("")
-    setSubmitting(true)
-    try {
-      await api.post("/superadmin/tenants", {
+  const createMutation = useMutation({
+    mutationFn: () =>
+      api.post("/superadmin/tenants", {
         ...form,
         requests_per_minute: Number(form.requests_per_minute) || 120,
         jurisdiction_state: form.jurisdiction_state ? form.jurisdiction_state.toUpperCase() : null,
         verification_methods: verificationMethods,
-      })
+      }),
+    onSuccess: () => {
       notify(`Tenant ${form.name} created`, "success")
       onCreated()
       onClose()
-    } catch (err) {
+    },
+    onError: (err) => {
       const message = err.response?.data?.detail || "Could not create tenant."
       setError(message)
       notify(message, "error")
-    } finally {
-      setSubmitting(false)
-    }
+    },
+  })
+
+  const submit = (e) => {
+    e.preventDefault()
+    setError("")
+    createMutation.mutate()
   }
 
   return (
@@ -160,11 +163,11 @@ export default function CreateTenantModal({ onClose, onCreated }) {
             </button>
             <button
               type="submit"
-              disabled={submitting}
+              disabled={createMutation.isPending}
               className="cursor-pointer rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-60"
               style={{ backgroundColor: "var(--color-primary)", color: "var(--color-on-primary)" }}
             >
-              {submitting ? "Creating…" : "Create tenant"}
+              {createMutation.isPending ? "Creating…" : "Create tenant"}
             </button>
           </div>
         </form>

@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react"
 import { Link, useNavigate, useSearchParams } from "react-router-dom"
 import AppShell from "../components/AppShell"
-import { api } from "../lib/api"
+import { useApplicationsQueue } from "../hooks/useApplicationsQueue"
 
 const PROCESSED_STATUSES = [
   { value: "", label: "All processed" },
@@ -37,24 +36,7 @@ export default function ApplicationsQueue() {
   const status = searchParams.get("status") || ""
   const reapprovalOnly = searchParams.get("reapproval_only") === "true"
 
-  const [applications, setApplications] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState("")
-
-  const load = () => {
-    setLoading(true)
-    setError("")
-    const params = { view }
-    if (view === "processed" && status) params.status = status
-    if (reapprovalOnly) params.reapproval_only = true
-    api
-      .get("/applications", { params })
-      .then((res) => setApplications(res.data))
-      .catch(() => setError("Could not load applications."))
-      .finally(() => setLoading(false))
-  }
-
-  useEffect(load, [view, status, reapprovalOnly])
+  const { applications, loading, error, load } = useApplicationsQueue(view, status, reapprovalOnly)
 
   const setView = (nextView) => {
     const params = { view: nextView }

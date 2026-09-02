@@ -1,3 +1,4 @@
+import { useMutation } from "@tanstack/react-query"
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import AppShell from "../components/AppShell"
@@ -23,51 +24,52 @@ export default function NewApplication() {
   })
   const [voter, setVoter] = useState(null)
   const [file, setFile] = useState(null)
-  const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState("")
 
   const update = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }))
 
-  const submitManual = async (e) => {
-    e.preventDefault()
-    setError("")
-    setSubmitting(true)
-    try {
-      const { data } = await api.post("/applications", { ...form, voter_id: voter?.id || null })
+  const manualMutation = useMutation({
+    mutationFn: () => api.post("/applications", { ...form, voter_id: voter?.id || null }).then((res) => res.data),
+    onSuccess: (data) => {
       notify(`Application ${data.application_number} created`, "success")
       navigate(`/applications/${data.id}`)
-    } catch (err) {
+    },
+    onError: (err) => {
       const message = err.response?.data?.detail || "Could not create application."
       setError(message)
       notify(message, "error")
-    } finally {
-      setSubmitting(false)
-    }
+    },
+  })
+  const submitManual = (e) => {
+    e.preventDefault()
+    setError("")
+    manualMutation.mutate()
   }
 
-  const submitScan = async (e) => {
+  const scanMutation = useMutation({
+    mutationFn: () => {
+      const formData = new FormData()
+      formData.append("file", file)
+      return api.post("/applications/scan", formData, { headers: { "Content-Type": "multipart/form-data" } }).then((res) => res.data)
+    },
+    onSuccess: (data) => {
+      notify(`Application ${data.application_number} created from scan`, "success")
+      navigate(`/applications/${data.id}`)
+    },
+    onError: (err) => {
+      const message = err.response?.data?.detail || "Could not process scan."
+      setError(message)
+      notify(message, "error")
+    },
+  })
+  const submitScan = (e) => {
     e.preventDefault()
     if (!file) {
       setError("Choose a scanned image or PDF first.")
       return
     }
     setError("")
-    setSubmitting(true)
-    try {
-      const formData = new FormData()
-      formData.append("file", file)
-      const { data } = await api.post("/applications/scan", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      })
-      notify(`Application ${data.application_number} created from scan`, "success")
-      navigate(`/applications/${data.id}`)
-    } catch (err) {
-      const message = err.response?.data?.detail || "Could not process scan."
-      setError(message)
-      notify(message, "error")
-    } finally {
-      setSubmitting(false)
-    }
+    scanMutation.mutate()
   }
 
   return (
@@ -109,11 +111,11 @@ export default function NewApplication() {
             />
             <button
               type="submit"
-              disabled={submitting || !file}
+              disabled={scanMutation.isPending || !file}
               className="cursor-pointer w-full rounded-lg py-2.5 text-base font-medium disabled:opacity-60"
               style={{ backgroundColor: "var(--color-primary)", color: "var(--color-on-primary)" }}
             >
-              {submitting ? "Uploading & extracting…" : "Upload & Extract"}
+              {scanMutation.isPending ? "Uploading & extracting…" : "Upload & Extract"}
             </button>
           </form>
         ) : processingMode === "manual" ? (
@@ -176,11 +178,11 @@ export default function NewApplication() {
 
             <button
               type="submit"
-              disabled={submitting}
+              disabled={manualMutation.isPending}
               className="cursor-pointer w-full rounded-lg py-2.5 text-base font-medium disabled:opacity-60"
               style={{ backgroundColor: "var(--color-primary)", color: "var(--color-on-primary)" }}
             >
-              {submitting ? "Creating…" : "Create Application"}
+              {manualMutation.isPending ? "Creating…" : "Create Application"}
             </button>
           </form>
         ) : (

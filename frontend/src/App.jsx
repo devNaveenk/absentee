@@ -1,9 +1,11 @@
+import { QueryClientProvider } from "@tanstack/react-query"
 import { Navigate, Route, BrowserRouter as Router, Routes } from "react-router-dom"
 import ConnectivityGate from "./components/ConnectivityGate"
 import ErrorBoundary from "./components/ErrorBoundary"
 import ProtectedRoute from "./components/ProtectedRoute"
 import { AuthProvider } from "./context/AuthContext"
 import { NotificationProvider } from "./context/NotificationContext"
+import { queryClient } from "./lib/queryClient"
 import ApplicationDetail from "./pages/ApplicationDetail"
 import ApplicationsQueue from "./pages/ApplicationsQueue"
 import Login from "./pages/Login"
@@ -21,6 +23,7 @@ const TENANT_ROLES = ["tenant_admin", "tenant_user"]
 export default function App() {
   return (
     <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
       <NotificationProvider>
         <AuthProvider>
           <ConnectivityGate>
@@ -113,6 +116,7 @@ export default function App() {
           </ConnectivityGate>
         </AuthProvider>
       </NotificationProvider>
+      </QueryClientProvider>
     </ErrorBoundary>
   )
 }

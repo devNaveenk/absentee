@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react"
 import { Link, useNavigate, useSearchParams } from "react-router-dom"
 import AppShell from "../components/AppShell"
-import { api } from "../lib/api"
+import { useReturnedBallotsQueue } from "../hooks/useReturnedBallotsQueue"
 
 const PROCESSED_STATUSES = [
   { value: "", label: "All processed" },
@@ -27,23 +26,7 @@ export default function ReturnedBallotsQueue() {
   const view = searchParams.get("view") === "processed" ? "processed" : "pending"
   const status = searchParams.get("status") || ""
 
-  const [ballots, setBallots] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState("")
-
-  const load = () => {
-    setLoading(true)
-    setError("")
-    const params = { view }
-    if (view === "processed" && status) params.status = status
-    api
-      .get("/returned-ballots", { params })
-      .then((res) => setBallots(res.data))
-      .catch(() => setError("Could not load returned ballots."))
-      .finally(() => setLoading(false))
-  }
-
-  useEffect(load, [view, status])
+  const { ballots, loading, error, load } = useReturnedBallotsQueue(view, status)
 
   return (
     <AppShell role="tenant">

@@ -1,8 +1,7 @@
-import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import AppShell from "../components/AppShell"
 import { useTenantConfig } from "../hooks/useTenantConfig"
-import { api } from "../lib/api"
+import { useTenantDashboard } from "../hooks/useTenantDashboard"
 
 const CARD_DEFS = [
   {
@@ -53,21 +52,7 @@ const QUICK_ACTIONS = [
 
 export default function TenantDashboard() {
   const { tenant } = useTenantConfig()
-  const [summary, setSummary] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState("")
-
-  const load = () => {
-    setLoading(true)
-    setError("")
-    api
-      .get("/dashboard/summary")
-      .then((res) => setSummary(res.data))
-      .catch(() => setError("Could not load dashboard metrics."))
-      .finally(() => setLoading(false))
-  }
-
-  useEffect(load, [])
+  const { summary, loading, error, load } = useTenantDashboard()
 
   return (
     <AppShell role="tenant">

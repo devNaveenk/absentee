@@ -1,3 +1,4 @@
+import { useMutation } from "@tanstack/react-query"
 import { useState } from "react"
 import { useNotify } from "../../context/NotificationContext"
 import { api } from "../../lib/api"
@@ -45,32 +46,33 @@ export default function ImportCsvModal({ onClose, onImported }) {
   const notify = useNotify()
   const [file, setFile] = useState(null)
   const [error, setError] = useState("")
-  const [submitting, setSubmitting] = useState(false)
   const [summary, setSummary] = useState(null)
 
-  const submit = async () => {
+  const importMutation = useMutation({
+    mutationFn: () => {
+      const formData = new FormData()
+      formData.append("file", file)
+      return api.post("/voters/import-csv", formData, { headers: { "Content-Type": "multipart/form-data" } }).then((res) => res.data)
+    },
+    onSuccess: (data) => {
+      setSummary(data)
+      notify(`Imported: ${data.created} created, ${data.updated} updated, ${data.skipped} skipped`, data.skipped > 0 ? "warning" : "success")
+      onImported()
+    },
+    onError: (err) => {
+      const message = err.response?.data?.detail || "Could not import CSV."
+      setError(message)
+      notify(message, "error")
+    },
+  })
+
+  const submit = () => {
     if (!file) {
       setError("Choose a CSV file first.")
       return
     }
     setError("")
-    setSubmitting(true)
-    try {
-      const formData = new FormData()
-      formData.append("file", file)
-      const { data } = await api.post("/voters/import-csv", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      })
-      setSummary(data)
-      notify(`Imported: ${data.created} created, ${data.updated} updated, ${data.skipped} skipped`, data.skipped > 0 ? "warning" : "success")
-      onImported()
-    } catch (err) {
-      const message = err.response?.data?.detail || "Could not import CSV."
-      setError(message)
-      notify(message, "error")
-    } finally {
-      setSubmitting(false)
-    }
+    importMutation.mutate()
   }
 
   return (
@@ -158,11 +160,11 @@ export default function ImportCsvModal({ onClose, onImported }) {
         {!summary && (
           <button
             onClick={submit}
-            disabled={submitting}
+            disabled={importMutation.isPending}
             className="cursor-pointer rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-60"
             style={{ backgroundColor: "var(--color-primary)", color: "var(--color-on-primary)" }}
           >
-            {submitting ? "Importing…" : "Import"}
+            {importMutation.isPending ? "Importing…" : "Import"}
           </button>
         )}
       </div>
