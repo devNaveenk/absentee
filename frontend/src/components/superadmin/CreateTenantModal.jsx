@@ -75,7 +75,7 @@ export default function CreateTenantModal({ onClose, onCreated }) {
   }
 
   return (
-    <Modal title="Create Tenant" onClose={onClose}>
+    <Modal title="Create Tenant" onClose={onClose} size="lg">
       <div className="max-h-[70vh] overflow-y-auto pr-1">
         <form onSubmit={submit} className="space-y-4">
           {error && (

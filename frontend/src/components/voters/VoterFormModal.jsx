@@ -78,7 +78,7 @@ export default function VoterFormModal({ voter, onClose, onSaved }) {
   }
 
   return (
-    <Modal title={isEdit ? "Edit Voter" : "Add Voter"} onClose={onClose}>
+    <Modal title={isEdit ? "Edit Voter" : "Add Voter"} onClose={onClose} size="lg">
       <form onSubmit={submit} className="space-y-4">
         {error && (
           <div role="alert" className="rounded-lg px-3 py-2 text-sm" style={{ backgroundColor: "var(--color-destructive-bg)", color: "var(--color-destructive)" }}>

@@ -1,4 +1,9 @@
-export default function Modal({ title, children, onClose }) {
+const SIZES = {
+  md: "max-w-md", // 448px -- confirmation dialogs with 1-2 fields (Reject/Cure/Verify)
+  lg: "max-w-xl", // 576px -- longer forms with several fields (Create Tenant, etc.)
+}
+
+export default function Modal({ title, children, onClose, size = "md" }) {
   return (
     <div
       className="fixed inset-0 flex items-center justify-center p-4 z-50"
@@ -8,7 +13,7 @@ export default function Modal({ title, children, onClose }) {
       <div
         role="dialog"
         aria-modal="true"
-        className="w-full max-w-md rounded-2xl p-6"
+        className={`w-full ${SIZES[size] || SIZES.md} rounded-2xl p-6`}
         style={{ backgroundColor: "var(--color-surface)" }}
         onClick={(e) => e.stopPropagation()}
       >
