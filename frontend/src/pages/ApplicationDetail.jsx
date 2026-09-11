@@ -1,4 +1,5 @@
 import AppShell from "../components/AppShell"
+import BackButton from "../components/BackButton"
 import ApplicationStatusActions from "../components/applications/ApplicationStatusActions"
 import CureApplicationModal from "../components/applications/CureApplicationModal"
 import ReapplyModal from "../components/applications/ReapplyModal"
@@ -24,6 +25,7 @@ export default function ApplicationDetail() {
     return (
       <AppShell role="tenant">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+          <BackButton fallback="/applications" />
           <div className="h-64 rounded-xl animate-pulse" style={{ backgroundColor: "var(--color-muted-bg)" }} />
         </div>
       </AppShell>
@@ -34,6 +36,7 @@ export default function ApplicationDetail() {
     return (
       <AppShell role="tenant">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+          <BackButton fallback="/applications" />
           <div role="alert" className="rounded-lg px-4 py-3 text-sm" style={{ backgroundColor: "var(--color-destructive-bg)", color: "var(--color-destructive)" }}>
             {d.error || "Application not found."}
           </div>
@@ -47,6 +50,7 @@ export default function ApplicationDetail() {
   return (
     <AppShell role="tenant">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+        <BackButton fallback="/applications" />
         <div className="flex items-start justify-between flex-wrap gap-3 mb-6">
           <div>
             <p className="text-xs font-medium" style={{ color: "var(--color-muted)" }}>

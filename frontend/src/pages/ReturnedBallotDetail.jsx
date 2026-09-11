@@ -1,5 +1,6 @@
 import AppShell from "../components/AppShell"
 import AuditHistoryList from "../components/AuditHistoryList"
+import BackButton from "../components/BackButton"
 import BallotDecisionActions from "../components/returned-ballots/BallotDecisionActions"
 import BallotVoterProfilePanel from "../components/returned-ballots/BallotVoterProfilePanel"
 import EnvelopeCard from "../components/returned-ballots/EnvelopeCard"
@@ -20,6 +21,7 @@ export default function ReturnedBallotDetail() {
     return (
       <AppShell role="tenant">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+          <BackButton fallback="/returned-ballots" />
           <div className="h-64 rounded-xl animate-pulse" style={{ backgroundColor: "var(--color-muted-bg)" }} />
         </div>
       </AppShell>
@@ -30,6 +32,7 @@ export default function ReturnedBallotDetail() {
     return (
       <AppShell role="tenant">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+          <BackButton fallback="/returned-ballots" />
           <div role="alert" className="rounded-lg px-4 py-3 text-sm" style={{ backgroundColor: "var(--color-destructive-bg)", color: "var(--color-destructive)" }}>
             {d.error || "Returned ballot not found."}
           </div>
@@ -43,6 +46,7 @@ export default function ReturnedBallotDetail() {
   return (
     <AppShell role="tenant">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+        <BackButton fallback="/returned-ballots" />
         <div className="flex items-start justify-between flex-wrap gap-3 mb-6">
           <div>
             <p className="text-xs font-medium" style={{ color: "var(--color-muted)" }}>

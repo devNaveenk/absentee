@@ -8,6 +8,7 @@ export default function FormField({ label, idPrefix = "field", ...props }) {
       </label>
       <input
         id={id}
+        autoComplete="off"
         {...props}
         className="w-full rounded-lg border px-3 py-2 text-sm outline-none"
         style={{ borderColor: "var(--color-border)" }}

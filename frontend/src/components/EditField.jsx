@@ -8,6 +8,7 @@ export default function EditField({ label, value, onChange }) {
       </label>
       <input
         id={id}
+        autoComplete="off"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className="w-full rounded-lg border px-3 py-2 text-sm outline-none"
