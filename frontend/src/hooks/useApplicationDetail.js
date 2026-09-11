@@ -147,6 +147,13 @@ export function useApplicationDetail() {
       return api.post(`/applications/${id}/signature`, formData, { headers: { "Content-Type": "multipart/form-data" } })
     },
     successMessage: "Request form signature uploaded",
+    onSuccess: () => {
+      // A returned ballot embeds a snapshot of this application's has_signature
+      // (original_application), so its cached page data goes stale the moment
+      // a signature is uploaded here -- invalidate every returned-ballot query,
+      // not just this application's, so that page picks it up without a manual refresh.
+      queryClient.invalidateQueries({ queryKey: ["returned-ballot"] })
+    },
   })
   const handleUploadSignature = (file) => uploadSignatureMutation.mutate(file)
 
