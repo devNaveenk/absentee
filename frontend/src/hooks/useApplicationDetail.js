@@ -140,6 +140,16 @@ export function useApplicationDetail() {
   })
   const handleSaveEdit = () => saveEditMutation.mutate()
 
+  const uploadSignatureMutation = useActionMutation({
+    mutationFn: (file) => {
+      const formData = new FormData()
+      formData.append("file", file)
+      return api.post(`/applications/${id}/signature`, formData, { headers: { "Content-Type": "multipart/form-data" } })
+    },
+    successMessage: "Request form signature uploaded",
+  })
+  const handleUploadSignature = (file) => uploadSignatureMutation.mutate(file)
+
   const reapplyMutation = useActionMutation({
     mutationFn: () => api.post(`/applications/${id}/reapply`, reapplyForm).then((res) => res.data),
     successMessage: "Reapplication submitted",
@@ -157,7 +167,8 @@ export function useApplicationDetail() {
     rejectMutation.isPending ||
     cureMutation.isPending ||
     saveEditMutation.isPending ||
-    reapplyMutation.isPending
+    reapplyMutation.isPending ||
+    uploadSignatureMutation.isPending
 
   const canDecide = application?.status === "unprocessed"
   const allChecked = verificationMethods.every((m) => checklist[m])
@@ -184,6 +195,8 @@ export function useApplicationDetail() {
     editForm,
     setEditForm,
     handleSaveEdit,
+    handleUploadSignature,
+    uploadingSignature: uploadSignatureMutation.isPending,
     handleMatchVoter,
     handleApprove,
     handleMarkAbsSent,

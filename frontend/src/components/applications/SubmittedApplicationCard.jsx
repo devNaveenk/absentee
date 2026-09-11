@@ -1,3 +1,4 @@
+import { useState } from "react"
 import DetailRow from "../DetailRow"
 import EditField from "../EditField"
 
@@ -13,7 +14,10 @@ export default function SubmittedApplicationCard({
   handleSaveEdit,
   scanImageUrl,
   requestSignatureUrl,
+  handleUploadSignature,
+  uploadingSignature,
 }) {
+  const [signatureFile, setSignatureFile] = useState(null)
   return (
     <section className="rounded-xl border p-5" style={{ backgroundColor: "var(--color-surface)", borderColor: "var(--color-border)" }}>
       <div className="flex items-center justify-between mb-4">
@@ -77,18 +81,39 @@ export default function SubmittedApplicationCard({
         </div>
       )}
 
-      {application.has_signature && (
-        <div className="mt-4">
-          <p className="text-xs font-medium mb-1.5" style={{ color: "var(--color-muted)" }}>
-            Request Form Signature
-          </p>
-          {requestSignatureUrl ? (
+      <div className="mt-4">
+        <p className="text-xs font-medium mb-1.5" style={{ color: "var(--color-muted)" }}>
+          Request Form Signature
+        </p>
+        {application.has_signature ? (
+          requestSignatureUrl ? (
             <img src={requestSignatureUrl} alt="Request form signature" className="rounded-lg border bg-white max-h-32" style={{ borderColor: "var(--color-border)" }} />
           ) : (
             <div className="h-24 w-64 rounded-lg animate-pulse" style={{ backgroundColor: "var(--color-muted-bg)" }} />
-          )}
-        </div>
-      )}
+          )
+        ) : (
+          <div className="flex items-center gap-3">
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setSignatureFile(e.target.files?.[0] || null)}
+              className="text-sm"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                handleUploadSignature(signatureFile)
+                setSignatureFile(null)
+              }}
+              disabled={!signatureFile || uploadingSignature || busy}
+              className="cursor-pointer rounded-lg px-3 py-1.5 text-xs font-medium disabled:opacity-60"
+              style={{ backgroundColor: "var(--color-muted-bg)", color: "var(--color-primary)" }}
+            >
+              {uploadingSignature ? "Uploading…" : "Upload"}
+            </button>
+          </div>
+        )}
+      </div>
     </section>
   )
 }
