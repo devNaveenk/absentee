@@ -1,6 +1,7 @@
-/** Shared audit-trail list -- same event shape (action/reason/created_at) on
- *  both AbsenteeApplication and ReturnedBallot events, so both detail pages
- *  render it identically instead of duplicating the markup. */
+/** Shared audit-trail list -- same event shape (action/reason/actor_email/
+ *  created_at) on both AbsenteeApplication and ReturnedBallot events, so
+ *  both detail pages render it identically instead of duplicating the
+ *  markup. */
 export default function AuditHistoryList({ events }) {
   return (
     <section className="rounded-xl border p-5" style={{ backgroundColor: "var(--color-surface)", borderColor: "var(--color-border)" }}>
@@ -12,7 +13,10 @@ export default function AuditHistoryList({ events }) {
               <span className="font-medium capitalize">{e.action.replaceAll("_", " ")}</span>
               {e.reason && <span style={{ color: "var(--color-muted)" }}> — {e.reason.replaceAll("_", " ")}</span>}
             </span>
-            <span style={{ color: "var(--color-muted)" }}>{new Date(e.created_at).toLocaleString()}</span>
+            <span className="text-right" style={{ color: "var(--color-muted)" }}>
+              {e.actor_email && <span className="block">{e.actor_email}</span>}
+              {new Date(e.created_at).toLocaleString()}
+            </span>
           </li>
         ))}
       </ol>

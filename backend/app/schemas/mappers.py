@@ -85,6 +85,7 @@ def application_event_to_out(event: ApplicationEvent) -> ApplicationEventOut:
         id=event.id,
         action=event.action,
         actor_user_id=event.actor_user_id,
+        actor_email=event.actor.email if event.actor else None,
         reason=event.reason,
         created_at=event.created_at,
     )
@@ -95,6 +96,7 @@ def returned_ballot_event_to_out(event: ReturnedBallotEvent) -> ReturnedBallotEv
         id=event.id,
         action=event.action,
         actor_user_id=event.actor_user_id,
+        actor_email=event.actor.email if event.actor else None,
         reason=event.reason,
         created_at=event.created_at,
     )

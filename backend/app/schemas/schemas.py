@@ -330,6 +330,7 @@ class ReturnedBallotEventOut(BaseModel):
     id: int
     action: str
     actor_user_id: int | None
+    actor_email: str | None = None
     reason: str | None
     created_at: datetime
 

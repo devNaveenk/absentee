@@ -238,6 +238,7 @@ class ApplicationEvent(AuditEventMixin, Base):
     )
 
     application: Mapped["AbsenteeApplication"] = relationship(back_populates="events")
+    actor: Mapped["User | None"] = relationship()
 
 
 class ReturnedBallotStatus(str, enum.Enum):
@@ -298,3 +299,4 @@ class ReturnedBallotEvent(AuditEventMixin, Base):
     returned_ballot_id: Mapped[int] = mapped_column(ForeignKey("returned_ballots.id"), nullable=False, index=True)
 
     returned_ballot: Mapped["ReturnedBallot"] = relationship(back_populates="events")
+    actor: Mapped["User | None"] = relationship()

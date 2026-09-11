@@ -22,7 +22,7 @@ class ReturnedBallotRepository:
             .options(
                 joinedload(ReturnedBallot.voter),
                 joinedload(ReturnedBallot.absentee_application),
-                joinedload(ReturnedBallot.events),
+                joinedload(ReturnedBallot.events).joinedload(ReturnedBallotEvent.actor),
             )
             .filter(ReturnedBallot.id == ballot_id, ReturnedBallot.tenant_id == tenant_id)
             .first()

@@ -20,7 +20,10 @@ class ApplicationRepository:
     def get(self, tenant_id: int, application_id: int) -> AbsenteeApplication | None:
         return (
             self.db.query(AbsenteeApplication)
-            .options(joinedload(AbsenteeApplication.voter), joinedload(AbsenteeApplication.events))
+            .options(
+                joinedload(AbsenteeApplication.voter),
+                joinedload(AbsenteeApplication.events).joinedload(ApplicationEvent.actor),
+            )
             .filter(AbsenteeApplication.id == application_id, AbsenteeApplication.tenant_id == tenant_id)
             .first()
         )
