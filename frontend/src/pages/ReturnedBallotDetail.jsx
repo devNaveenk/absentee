@@ -5,7 +5,6 @@ import BallotDecisionActions from "../components/returned-ballots/BallotDecision
 import BallotVoterProfilePanel from "../components/returned-ballots/BallotVoterProfilePanel"
 import EnvelopeCard from "../components/returned-ballots/EnvelopeCard"
 import RejectBallotModal from "../components/returned-ballots/RejectBallotModal"
-import SignatureComparisonPanel from "../components/returned-ballots/SignatureComparisonPanel"
 import { useReturnedBallotDetail } from "../hooks/useReturnedBallotDetail"
 
 const STATUS_LABELS = {
@@ -80,13 +79,6 @@ export default function ReturnedBallotDetail() {
             handleMatchVoter={d.handleMatchVoter}
           />
         </div>
-
-        <SignatureComparisonPanel
-          ballot={ballot}
-          requestSignatureUrl={d.requestSignatureUrl}
-          envelopeImageUrl={d.envelopeImageUrl}
-          signatureUrl={d.signatureUrl}
-        />
 
         <BallotDecisionActions
           ballot={ballot}

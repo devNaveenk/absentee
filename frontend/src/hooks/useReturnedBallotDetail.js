@@ -39,9 +39,6 @@ export function useReturnedBallotDetail() {
 
   const envelopeImageUrl = useAuthedObjectUrl(ballot?.has_envelope_scan ? `/returned-ballots/${id}/envelope-image` : null)
   const signatureUrl = useAuthedObjectUrl(ballot?.voter?.has_signature ? `/voters/${ballot.voter.id}/signature` : null)
-  const requestSignatureUrl = useAuthedObjectUrl(
-    ballot?.original_application?.has_signature ? `/applications/${ballot.original_application.id}/signature` : null
-  )
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ballotQueryKey(id) })
 
@@ -102,7 +99,6 @@ export function useReturnedBallotDetail() {
     setChecklist,
     envelopeImageUrl,
     signatureUrl,
-    requestSignatureUrl,
     handleMatchVoter,
     handleVerify,
     handleReject,

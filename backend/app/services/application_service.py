@@ -66,21 +66,6 @@ class ApplicationService:
             raise NotFoundError("Scan file missing")
         return path
 
-    def get_signature_image_path(self, tenant_id: int, application_id: int):
-        app_ = self.get_application(tenant_id, application_id)
-        if not app_.signature_image_path:
-            raise NotFoundError("No signature on file for this application")
-        path = self.storage.resolve(app_.signature_image_path)
-        if not path.exists():
-            raise NotFoundError("Signature file missing")
-        return path
-
-    def set_signature(self, tenant_id: int, application_id: int, filename: str, content: bytes) -> AbsenteeApplication:
-        app_ = self.get_application(tenant_id, application_id)
-        app_.signature_image_path = self.storage.save(tenant_id, "application_signatures", filename, content)
-        self.applications.commit()
-        return self.get_application(tenant_id, app_.id)
-
     def create_manual(self, tenant_id: int, actor: User, payload) -> AbsenteeApplication:
         voter = None
         if payload.voter_id is not None:

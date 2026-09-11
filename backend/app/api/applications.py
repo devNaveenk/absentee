@@ -73,27 +73,6 @@ def get_scan_image(
     return FileResponse(path)
 
 
-@router.post("/{application_id}/signature", response_model=ApplicationOut)
-async def upload_application_signature(
-    application_id: int,
-    file: UploadFile = File(...),
-    user: User = Depends(require_tenant_user),
-    service: ApplicationService = Depends(get_application_service),
-):
-    content = await file.read()
-    return application_to_out(
-        service.set_signature(tenant_scope(user), application_id, file.filename or "signature.png", content)
-    )
-
-
-@router.get("/{application_id}/signature")
-def get_application_signature(
-    application_id: int, user: User = Depends(require_tenant_user), service: ApplicationService = Depends(get_application_service)
-):
-    path = service.get_signature_image_path(tenant_scope(user), application_id)
-    return FileResponse(path)
-
-
 @router.patch("/{application_id}", response_model=ApplicationOut)
 def update_application(
     application_id: int,

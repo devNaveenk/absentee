@@ -75,7 +75,6 @@ export function useApplicationDetail() {
   const signatureUrl = useAuthedObjectUrl(
     application?.voter?.has_signature ? `/voters/${application.voter.id}/signature` : null
   )
-  const requestSignatureUrl = useAuthedObjectUrl(application?.has_signature ? `/applications/${id}/signature` : null)
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: applicationQueryKey(id) })
 
@@ -140,23 +139,6 @@ export function useApplicationDetail() {
   })
   const handleSaveEdit = () => saveEditMutation.mutate()
 
-  const uploadSignatureMutation = useActionMutation({
-    mutationFn: (file) => {
-      const formData = new FormData()
-      formData.append("file", file)
-      return api.post(`/applications/${id}/signature`, formData, { headers: { "Content-Type": "multipart/form-data" } })
-    },
-    successMessage: "Request form signature uploaded",
-    onSuccess: () => {
-      // A returned ballot embeds a snapshot of this application's has_signature
-      // (original_application), so its cached page data goes stale the moment
-      // a signature is uploaded here -- invalidate every returned-ballot query,
-      // not just this application's, so that page picks it up without a manual refresh.
-      queryClient.invalidateQueries({ queryKey: ["returned-ballot"] })
-    },
-  })
-  const handleUploadSignature = (file) => uploadSignatureMutation.mutate(file)
-
   const reapplyMutation = useActionMutation({
     mutationFn: () => api.post(`/applications/${id}/reapply`, reapplyForm).then((res) => res.data),
     successMessage: "Reapplication submitted",
@@ -174,8 +156,7 @@ export function useApplicationDetail() {
     rejectMutation.isPending ||
     cureMutation.isPending ||
     saveEditMutation.isPending ||
-    reapplyMutation.isPending ||
-    uploadSignatureMutation.isPending
+    reapplyMutation.isPending
 
   const canDecide = application?.status === "unprocessed"
   const allChecked = verificationMethods.every((m) => checklist[m])
@@ -196,14 +177,11 @@ export function useApplicationDetail() {
     setChecklist,
     scanImageUrl,
     signatureUrl,
-    requestSignatureUrl,
     editing,
     setEditing,
     editForm,
     setEditForm,
     handleSaveEdit,
-    handleUploadSignature,
-    uploadingSignature: uploadSignatureMutation.isPending,
     handleMatchVoter,
     handleApprove,
     handleMarkAbsSent,

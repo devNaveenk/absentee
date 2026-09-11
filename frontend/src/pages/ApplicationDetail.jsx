@@ -87,9 +87,6 @@ export default function ApplicationDetail() {
             busy={d.busy}
             handleSaveEdit={d.handleSaveEdit}
             scanImageUrl={d.scanImageUrl}
-            requestSignatureUrl={d.requestSignatureUrl}
-            handleUploadSignature={d.handleUploadSignature}
-            uploadingSignature={d.uploadingSignature}
           />
           <VoterProfilePanel
             application={application}

@@ -130,7 +130,6 @@ def application_to_out(app_: AbsenteeApplication) -> ApplicationOut:
         parent_application_id=app_.parent_application_id,
         is_reapproval=app_.is_reapproval,
         has_scan_image=bool(app_.scan_image_path),
-        has_signature=bool(app_.signature_image_path),
         rejection_reason=app_.rejection_reason,
         cure_reason=app_.cure_reason,
         cure_notified_via=app_.cure_notified_via,
@@ -165,7 +164,6 @@ def returned_ballot_to_out(ballot: ReturnedBallot) -> ReturnedBallotOut:
             submitted_full_name=a.submitted_full_name,
             submitted_address=a.submitted_address,
             submitted_dl_number=a.submitted_dl_number,
-            has_signature=bool(a.signature_image_path),
             processed_at=a.processed_at,
         )
     return ReturnedBallotOut(

@@ -259,7 +259,6 @@ class ApplicationOut(BaseModel):
     parent_application_id: int | None
     is_reapproval: bool
     has_scan_image: bool
-    has_signature: bool
     rejection_reason: str | None
     cure_reason: str | None
     cure_notified_via: str | None
@@ -315,7 +314,6 @@ class OriginalApplicationSummary(BaseModel):
     submitted_full_name: str
     submitted_address: str
     submitted_dl_number: str | None
-    has_signature: bool
     processed_at: datetime | None
 
     class Config:
